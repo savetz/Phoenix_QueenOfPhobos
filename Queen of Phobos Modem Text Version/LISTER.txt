@@ -1,0 +1,30 @@
+ 5  ONERR  GOTO 300
+ 6  INPUT "ENTER SLOT # ";A$:PT =  VAL (A$)
+ 7  IF A$ = "END" THEN  END 
+ 10 D$ =  CHR$ (4)
+ 15  PRINT D$;"PR#";PT
+ 20  INPUT "FILE NAME ";F$
+ 21  IF A$ = "END" THEN  END 
+ 22  INPUT "STARTING LINE ";A$:S1 =  VAL (A$)
+ 24  INPUT "ENDING   LINE ";A$:S2 =  VAL (A$)
+ 25  IF PT > 0 THEN  PRINT  CHR$ (9);"80N"
+ 30  PRINT D$;"OPEN ";F$
+ 40  PRINT D$;"READ ";F$
+ 60  GET A$
+ 62  IF KT + 1 < S1 AND A$ <  >  CHR$ (13) THEN 60
+ 65 X =  LEN (B$)
+ 66  IF X = 0 AND A$ = "*" THEN FL = 1
+ 70  IF A$ = " " AND X < 7 AND FL = 0 THEN B$ = B$ + " ": GOTO 65
+ 80  IF A$ = " " AND X > 10 AND X < 12 AND FL = 0 THEN B$ = B$ + " ": GOTO 65
+ 120  IF A$ =  CHR$ (13) THEN 200
+ 130 B$ = B$ + A$: GOTO 60
+ 200 KT = KT + 1: IF KT < S1 THEN  PRINT :: GOTO 230
+ 220  PRINT : PRINT KT;: POKE 36,5: PRINT B$
+ 230 B$ = ""
+ 235 FL = 0
+ 236  IF KT >  = S2 THEN 300
+ 240  GOTO 40
+ 300  PRINT D$
+ 305  PRINT D$;"CLOSE ";F$
+ 310  PRINT D$;"PR#0"
+ 320  GOTO 5

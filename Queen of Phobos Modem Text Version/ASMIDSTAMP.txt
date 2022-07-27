@@ -1,0 +1,10 @@
+03B8-   D1 D5       CMP   ($D5),Y
+03BA-   C5 C5       CMP   $C5
+03BC-   CE A0 D0    DEC   $D0A0
+03BF-   C8          INY
+03C0-   CF          ???
+03C1-   C2          ???
+03C2-   A3          ???
+03C3-   B0 B0       BCS   $0375
+03C5-   B0 B1       BCS   $0378
+03C7-   B9 B4 00    LDA   $00B4,Y

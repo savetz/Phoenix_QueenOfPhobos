@@ -1,0 +1,819 @@
+*********************
+* ATTACK COMMAND    *
+*********************
+ATTACK   JSR   SYNTAX     
+         CMP   ROOM
+         BNE   NOATK1
+         LDA   HOLD
+         CMP   #13
+         BCC   NOATK2
+         CMP   #17
+         BCS   NOATK2
+         STA   Y          MONSTER
+         LDA   #5
+         STA   FLAG2
+         JSR   MANDRX
+         LDA   #00
+         STA   FLAG2
+         CPY   #$FF
+         BEQ   NOATK3
+         LDA   VERBH
+         STA   NOUNH
+         JSR   SYNTAX
+         CMP   #$FF
+         BNE   NOATK4
+ATTACKA  LDA   HOLD
+         CMP   #09
+         BCS   NOATK5
+         CMP   #7         BEER
+         BEQ   NOATK5
+         CMP   #6         DEVICE
+         BEQ   NOATK12
+         CMP   #01        BAZOOKA
+         BEQ   NOATK6
+         CMP   #3         MK-4
+         BEQ   NOATK7
+         CMP   #4         AXE
+         BEQ   NOATK8
+         CMP   #8         GAS
+         BEQ   NOATK9
+         CMP   #2         CROSSBOW
+         BNE   ATTACK1
+         LDA   Y          MONSTER
+         CMP   #13        HUNTER
+         BNE   NOATK10
+         LDA   #00
+         STA   MONSTER
+         LDA   ROOM
+         STA   DMON
+         LDA   #37        
+         STA   OBJVAL+99  
+         STA   OBJVAL+100 
+         LDA   #242
+         JMP   SYSMSG
+NOATK1   LDA   #21
+         JMP   SYSMSG
+NOATK2   LDA   #40
+         JMP   SYSMSG
+NOATK3   JMP   TEND       HUH?
+NOATK4   LDA   #24
+         JMP   SYSMSG
+NOATK5   LDA   #220
+         JSR   SYSMSG
+         JMP   DEADY
+NOATK6   LDA   #238
+         JSR   SYSMSG
+         JMP   DEADY
+NOATK7   LDA   #239
+         JSR   SYSMSG
+         JMP   DEADY
+NOATK8   LDA   #240
+         JSR   SYSMSG
+         JMP   DEADY
+NOATK9   JMP   THROWG
+NOATK10  LDA   #241
+         JSR   SYSMSG
+         JMP   DEADY
+NOATK11  LDA   #243
+         JSR   SYSMSG
+         JMP   DEADY
+NOATK12  LDA   #221
+         JSR   SYSMSG
+         JMP   DEADY
+ATTACK1  LDA   Y          MONSTER
+         CMP   #14        JOE
+         BNE   NOATK11
+         LDA   #00
+         STA   MONSTER+3
+         LDA   ROOM
+         STA   DMON+3
+         LDA   #38        
+         STA   OBJVAL+101 
+         STA   OBJVAL+102 
+         LDA   #244
+         JMP   SYSMSG
+**********************
+* DRINK AND EAT CMMD *
+**********************
+DRINK    JSR   SYNTAX     
+         CMP   #$FF
+         BNE   NODRINK1
+         LDA   HOLD
+         CMP   #7         BEER
+         BEQ   DRINK1
+         CMP   #12        POT
+         BEQ   DRINK2
+         CMP   #25        SALT
+         BEQ   DRINK3
+DRINK0   LDA   #40
+         JMP   SYSMSG
+DRINK1   LDA   #231
+         JSR   SYSMSG
+         JMP   DEADY
+DRINK2   LDA   OBDET+11
+         CMP   #142
+         BNE   DRINK0
+         LDA   #232
+         JSR   SYSMSG
+         JMP   DEADY
+DRINK3   LDA   #00
+         STA   (POINT),Y
+         DEC   CARRY
+         LDA   #119
+         JMP   SYSMSG
+NODRINK1 LDA   #24
+         JMP   SYSMSG
+************************
+*  CLOSE COMMAND       *
+************************
+CLOSE    JSR   SYNTAX     
+         CMP   #$FF
+         BEQ   CLOSE1
+         CMP   ROOM
+         BNE   NCLOSE4
+         INY
+         LDA   (POINT),Y
+         BNE   CLOSE1
+NCLOSE4  LDA   #24
+         JMP   SYSMSG
+NCLOSE3  LDA   #41
+         JMP   SYSMSG
+*
+CLOSE1   LDA   HOLD
+         CMP   #30        COOKBOOK
+         BNE   CLOSE2
+         LDA   COOKBOOK+2
+         CMP   #70
+         BEQ   NCLOSE3
+         LDA   #70
+         STA   COOKBOOK+2
+         LDA   #09
+         JMP   SYSMSG
+CLOSE2   CMP   #29        CABINET OPEN
+         BNE   CLOSE3
+         LDA   #00
+         STA   CABINET+3
+         LDA   ROOM
+         STA   CABINET
+         LDA   COOKBOOK
+         CMP   ROOM
+         BNE   CLOSE2A
+         LDA   #99
+         STA   COOKBOOK
+CLOSE2A  LDA   #28
+         STA   OBJVAL+76
+         LDA   #09
+         JMP   SYSMSG
+CLOSE3   CMP   #32        LOCKER OPEN
+         BNE   CLOSE4
+         LDA   #00
+         STA   LOCKER+3
+         LDA   ROOM
+         STA   LOCKER
+         LDA   SALT
+         CMP   ROOM
+         BNE   CLOSE3A
+         LDA   #99
+         STA   SALT
+CLOSE3A  LDA   #31
+         STA   OBJVAL+81
+         LDA   #09
+         JMP   SYSMSG
+CLOSE4   CMP   #34        TOOL CHEST OPEN
+         BNE   CLOSE5
+         LDA   #00
+         STA   CHEST+3
+         LDA   ROOM
+         STA   CHEST
+         LDA   SHOVEL
+         CMP   ROOM
+         BNE   CLOSE4A
+         LDA   #99
+         STA   SHOVEL
+CLOSE4A  LDA   #33
+         STA   OBJVAL+85
+         STA   OBJVAL+87
+         LDA   #09
+         JMP   SYSMSG
+CLOSE5   CMP   #10        SPIGOT
+         BNE   CLOSE6
+         LDA   WRENCH
+         CMP   #$FF       
+         BNE   NCLOSE6
+         LDA   #140
+         STA   OBDET+9
+         JMP   SYSMSG
+NCLOSE6  LDA   #32
+         JMP   SYSMSG
+CLOSE6   CMP   #49        COFFIN OPEN
+         BNE   CLOSE7
+         LDA   ROOM
+         STA   RMOLD
+         LDA   #41
+         STA   ROOM
+         STA   ROOM36+6
+         JSR   MOVEIT
+         LDA   MAP
+         CMP   ROOM
+         BNE   CLOSE6A
+         LDA   #99
+         STA   MAP
+CLOSE6A  LDA   #48
+         STA   OBJVAL+122
+         STA   OBJVAL+123
+         LDA   #00
+         STA   COFFIN+3
+         STA   NOUNH
+         JMP   LOOK
+CLOSE7   CMP   #28
+         BEQ   CLOSE8
+         CMP   #31
+         BEQ   CLOSE8
+         CMP   #33
+         BEQ   CLOSE8
+         CMP   #48
+         BEQ   CLOSE8
+         LDA   #22
+         JMP   SYSMSG
+CLOSE8   LDA   #41
+         JMP   SYSMSG
+************************
+*  GIVE COMMAND        *
+************************
+NOGIVE6  LDA   #208
+         JMP   SYSMSG
+GIVE     JSR   SYNTAX     
+         CMP   ROOM
+         BEQ   NOGIVE1
+         CMP   #$FF
+         BNE   NOGIVE2
+         LDA   POINT
+         STA   X
+         LDA   POINT+1
+         STA   X+1
+         LDA   HOLD
+         STA   Y          OBJECT 
+         LDA   #34        WHO TO?
+         STA   FLAG2
+         JSR   MANDRX
+         LDA   #00
+         STA   FLAG2
+         CPY   #$FF
+         BEQ   NOGIVE3
+         LDA   VERBH
+         STA   NOUNH
+         JSR   SYNTAX
+         CMP   ROOM       PRESENT IN ROOM
+         BNE   NOGIVE4    NO
+         LDA   HOLD
+         CMP   #13        A MONSTER?
+         BCC   NOGIVE5
+         CMP   #17
+         BCS   NOGIVE5
+         LDA   Y          OBJECT
+         CMP   #09
+         BCS   NOGIVE6
+         CMP   #07        BEER
+         BEQ   GIVE7X     
+         CMP   #01        BAZOOKA
+         BEQ   GIVE1
+         CMP   #06        NUCLEAR
+         BEQ   GIVE6
+         CMP   #08        GRENADE
+         BEQ   GIVE8X     
+         LDA   #209       USE WEAPON ON YOU
+         JSR   SYSMSG
+         JMP   DEADY
+NOGIVE1  LDA   #12
+         JMP   SYSMSG
+NOGIVE2  LDA   #24
+         JMP   SYSMSG
+NOGIVE3  JMP   TEND       HUH?
+NOGIVE4  LDA   #21
+         JMP   SYSMSG
+NOGIVE5  LDA   #22
+         JMP   SYSMSG
+GIVE7X   JMP   GIVE7
+GIVE8X   JMP   GIVE8
+*
+GIVE1    LDA   #00         BAZOOKA
+         STA   (POINT),Y  GET RID OF LIVE BODY
+         LDY   #72
+         LDA   ROOM
+         STA   (POINT),Y  DEAD BODY
+         LDA   HOLD
+         CMP   #13
+         BNE   GG1
+         LDA   #37
+         STA   OBJVAL+99
+         STA   OBJVAL+100
+         JMP   GG4
+GG1      CMP   #14
+         BNE   GG2
+         LDA   #38
+         STA   OBJVAL+101
+         STA   OBJVAL+102
+         JMP   GG4
+GG2      CMP   #15
+         BNE   GG3
+         LDA   #39
+         STA   OBJVAL+103
+         STA   OBJVAL+104
+         JMP   GG4
+GG3      LDA   #40
+         STA   OBJVAL+105
+GG4      LDY   #00
+         LDA   #00
+         STA   (X),Y      GET RID OF BAZOOKA
+         DEC   CARRY
+         LDA   #210
+         JMP   SYSMSG
+*
+GIVE6    LDA   #223       NUCLEAR
+         JSR   SYSMSG
+         JMP   DEADY
+GIVE7    LDA   HOLD
+         CMP   #15        BEETLE?
+         BNE   NOGIVE7
+         LDA   #00
+         STA   (POINT),Y
+         LDY   #72
+         LDA   ROOM
+         STA   (POINT),Y  DEAD BODY
+         LDA   #39
+         STA   OBJVAL+103
+         STA   OBJVAL+104
+         LDY   #00
+         LDA   #00
+         STA   (X),Y      GET RID OF BEER
+         DEC   CARRY
+         LDA   #235
+         JMP   SYSMSG
+NOGIVE7  LDA   #236
+         JSR   SYSMSG
+         JMP   DEADY
+*
+GIVE8    LDA   #237       GRENADE
+         JSR   SYSMSG
+         LDA   X
+         STA   POINT
+         LDA   X+1
+         STA   POINT+1
+         JMP   THROWG
+**********************
+* GET COMMAND AND    *
+* TAKE ACTION.       *
+**********************
+MANDRX   JSR   GET        
+         STX   TEMP1      
+         LDA   #$00
+         STA   HOLD
+         STA   NOUNH      
+         STA   VERBH
+         TXA   
+         BEQ   TENDX      
+         JSR   VERBFD
+         CPY   #$FF
+         BEQ   TENDVX     
+         STY   VERBH
+         RTS
+TENDVX   NOP   
+TENDX    RTS
+**************************
+*  KICK & HIT ROUTINE    *
+**************************
+KICK     JSR   SYNTAX     
+         CMP   ROOM
+         BEQ   KICK1
+         LDA   #21
+         JMP   SYSMSG
+KICK1    LDA   HOLD
+         CMP   #13
+         BCC   KICK2
+         CMP   #17
+         BCS   KICK2
+         LDA   #220       KICK A MONSTER
+         JSR   SYSMSG
+         JMP   DEADY
+KICK2    CMP   #35
+         BNE   KICK3
+         LDA   TOKEN
+         CMP   #99        IS IT IN MACHINE
+         BNE   KICK3       NOT IN MACHINE
+         LDA   FLAG11     #OF OBJECTS WON 
+         CMP   #06        NO MORE OBJECTS
+         BCS   KICK3      OUT OF OBJECTS
+         LDA   ROOM
+         STA   TOKEN
+         LDA   #130
+         JMP   SYSMSG
+KICK3    LDA   #27
+         JMP   SYSMSG
+         RTS
+*************************
+* WEAR COMMAND          *
+*************************
+WEAR     JSR   SYNTAX
+         CMP   #$FF
+         BNE   NOWEAR1
+         LDA   HOLD
+         CMP   #9         GAS MASK 
+         BEQ   WEAR1
+         CMP   #27        MASK
+         BEQ   WEAR2
+         LDA   #22        CANT DO 
+         JMP   SYSMSG
+WEAR1    LDA   MASK2
+         BNE   NOWEAR2
+         STA   (POINT),Y
+         LDA   #$FF
+         STA   MASK1
+         LDA   #20
+         JMP   SYSMSG
+WEAR2    LDA   MASK1
+         BNE   NOWEAR2
+         STA   (POINT),Y
+         LDA   #$FF
+         STA   MASK2
+         LDA   #20
+         JSR   SYSMSG
+         LDA   #118       
+         JMP   SYSMSG
+NOWEAR1  LDA   #24
+         JMP   SYSMSG
+NOWEAR2  LDA   #08
+         JMP   SYSMSG
+*********************
+* REMOVE COMMAND    *
+*********************
+REMOVE   JSR   SYNTAX
+         CMP   #$FF
+         BEQ   NOREM0
+         LDA   HOLD
+         CMP   #09        GAS MASK 
+         BEQ   REM1
+         CMP   #27        MASK
+         BEQ   REM2
+         LDA   #24        NOPE
+         JMP   SYSMSG
+REM1     LDA   MASK1
+         CMP   #$FF
+         BNE   NOREM0
+         STA   (POINT),Y
+         LDA   #00
+         STA   MASK1
+         LDA   #09
+         JMP   SYSMSG
+REM2     LDA   MASK2
+         CMP   #$FF
+         BNE   NOREM0
+         STA   (POINT),Y
+         LDA   #00
+         STA   MASK2
+         LDA   #09
+         JMP   SYSMSG
+NOREM0   LDA   #24
+         JMP   SYSMSG
+********************
+* INSERT COMMAND   *
+********************
+INSERT   JSR   SYNTAX
+         CMP   #$FF
+         BNE   NOINS1
+         LDA   ROOM
+         CMP   #08
+         BNE   NOINS2
+         LDA   HOLD
+         CMP   #19
+         BNE   NOINS3
+         LDA   #99
+         STA   TOKEN
+         DEC   CARRY
+         JMP   IRONCLAW
+NOINS1   LDA   #24
+         JMP   SYSMSG
+NOINS2   LDA   #14
+         JMP   SYSMSG
+NOINS3   LDA   #22
+         JMP   SYSMSG
+**************************
+*  THROW OBJECT ROUTINE  *
+**************************
+THROWGX  JMP   THROWG
+THROWMX  JMP   THROWM
+THROWLX  JMP   THROWL
+THROW    JSR   SYNTAX     
+         CMP   #$FF
+         BNE   NOTHROW3
+         LDA   ROOM
+         CMP   #46
+         BEQ   THROWLX    LAZER ROOM 
+         CMP   #48        MASK ROOM
+         BEQ   THROWMX     
+         CMP   #29        OUTSIDE
+         BCC   THROW1
+         CMP   #31
+         BCC   THROWA     OUTSIDE
+         CMP   #36        PLANET
+         BCC   THROW1
+         CMP   #43
+         BCS   THROW1
+         LDA   #00
+         STA   (POINT),Y
+         DEC   CARRY
+         LDA   #123       PLANET THROW AWAY
+         JMP   SYSMSG
+NOTHROW3 LDA   #24
+         JMP   SYSMSG
+*
+THROW1   LDA   HOLD
+         CMP   #12        POT
+         BEQ   THROW2
+         CMP   #08        GAS GRENADE
+         BEQ   THROWGX
+         LDA   ROOM
+         STA   (POINT),Y
+         DEC   CARRY
+         LDA   #09
+         JMP   SYSMSG
+THROW2   LDA   #00
+         STA   (POINT),Y
+         DEC   CARRY
+         LDA   ROOM
+         STA   BRKPOT
+         LDA   #36
+         STA   OBJVAL+97
+         STA   OBJVAL+98
+         LDA   #121       
+         JMP   SYSMSG
+*
+THROWA   LDA   #00
+         STA   (POINT),Y
+         DEC   CARRY
+         LDA   ROOM
+         CMP   #30        OUTSIDE
+         BNE   THROWAB
+         LDA   CABLE
+         CMP   #$FF
+         BNE   FLT1
+         LDA   CABLE+2
+         BEQ   FLT1
+THROWAB  LDA   #122       
+         JMP   SYSMSG
+FLT1     LDA   #122       
+         JSR   SYSMSG
+         LDA   #222       
+         JSR   SYSMSG
+         JMP   FLOAT
+*
+THROWL   LDA   #00
+         STA   (POINT),Y
+         DEC   CARRY
+         LDA   HOLD
+         CMP   #06
+         BNE   THROWL1
+         LDA   #224       
+         JSR   SYSMSG
+         JMP   DEADY
+THROWL1  JMP   LAZERB
+*
+THROWM   LDA   HOLD
+         CMP   #12
+         BNE   THROW1
+         LDA   POT+2
+         BEQ   THROW1
+         LDA   #00
+         STA   (POINT),Y
+         DEC   CARRY
+         LDA   #48
+         STA   RMOLD
+         LDA   #49
+         STA   ROOM
+         JSR   MOVEIT
+         LDA   ROOM
+         STA   BRKPOT
+         LDA   #49
+         STA   ROOM47+4
+         LDA   #218
+         JMP   SYSMSG
+*
+THROWG   LDA   MASK1
+         CMP   #$FF
+         BEQ   THROWG1
+         LDA   #219
+         JSR   SYSMSG
+         JMP   DEADY
+THROWG1  LDA   #00
+         STA   (POINT),Y
+         DEC   CARRY
+         LDA   #120
+         JSR   SYSMSG
+         LDA   MONSTER
+         CMP   ROOM
+         BNE   TT2
+         LDA   #00
+         STA   MONSTER
+         LDA   ROOM
+         STA   DMON       DEAD
+         LDA   #37
+         STA   OBJVAL+99
+         STA   OBJVAL+100
+         LDA   #245
+         JSR   SYSMSG
+TT2      LDA   MONSTER+3
+         CMP   ROOM
+         BNE   TT3
+         LDA   #00
+         STA   MONSTER+3
+         LDA   ROOM
+         STA   DMON+3
+         LDA   #38
+         STA   OBJVAL+101
+         STA   OBJVAL+102
+         LDA   #246
+         JSR   SYSMSG
+TT3      LDA   MONSTER+6
+         CMP   ROOM
+         BNE   TT4
+         LDA   #00
+         STA   MONSTER+6
+         LDA   ROOM
+         STA   DMON+6     DEAD
+         LDA   #39
+         STA   OBJVAL+103
+         STA   OBJVAL+104
+         LDA   #247
+         JSR   SYSMSG
+TT4      LDA   MONSTER+9
+         CMP   ROOM
+         BNE   TT5
+         LDA   #00
+         STA   MONSTER+9  
+         LDA   ROOM
+         STA   DMON+9     DEAD
+         LDA   #40
+         STA   OBJVAL+105
+         LDA   #248
+         JSR   SYSMSG
+TT5      NOP   
+         RTS   
+*********************
+* MOVE OBJECTS FROM *
+* RMOLD TO ROOM     *
+*********************
+MOVEIT   LDA   #>OBJECT
+         STA   POINT
+         LDA   #<OBJECT
+         STA   POINT+1
+         LDA   #1
+         STA   TEMP1
+         LDY   #00
+THRA     LDA   (POINT),Y
+         CMP   RMOLD
+         BNE   THR1
+         LDA   ROOM
+         STA   (POINT),Y
+THR1     JSR   CREEP3     
+         LDA   TEMP1
+         CMP   NOBJSHOW   
+         BCS   THR2
+         INC   TEMP1
+         JMP   THRA
+THR2     RTS
+********************
+* KABOOM - NUCLEAR *
+* BLOWING UP       *
+********************
+KABOOM   LDA   NUCLEAR
+         BEQ   DISARM
+         LDA   ROOM
+         CMP   #36
+         BCC   KABOOM1
+         CMP   #42
+         BCC   DISARM1
+KABOOM1  LDA   #225       
+         JSR   SYSMSG
+         JMP   DEADY
+DISARM1  LDA   #00
+         STA   FLAG7
+         LDA   #249
+         JSR   SYSMSG
+DISARM   RTS
+**************************
+* ATTACH CABLE ROUTINE   *
+**************************
+ATTACH   LDA   NOUNH
+         BEQ   NATTH0
+         TAY
+         LDA   OBJVAL,Y
+         BEQ   NATTH1
+         CMP   #18
+         BNE   NATTH1
+         LDA   CABLE
+         CMP   #$FF
+         BNE   NATTH2
+         LDA   ROOM
+         CMP   #5
+         BEQ   ATTH1
+         CMP   #14
+         BEQ   ATTH1
+         CMP   #15
+         BEQ   ATTH1
+         LDA   #3
+         JMP   SYSMSG
+ATTH1    STA   CABLE+2
+         LDA   #09
+         JMP   SYSMSG
+NATTH0   LDA   #26
+         JMP   SYSMSG
+NATTH1   LDA   #22
+         JMP   SYSMSG
+NATTH2   LDA   #24
+         JMP   SYSMSG
+         RTS
+**************************
+* UNATTACH CABLE ROUTINE *
+**************************
+UNATTACH LDA   NOUNH
+         BEQ   NATTH0
+         TAY
+         LDA   OBJVAL,Y
+         BEQ   NATTH1
+         CMP   #18
+         BNE   NATTH1
+         LDA   CABLE
+         CMP   #$FF
+         BNE   NATTH2
+         LDA   #00
+         STA   CABLE+2
+         STA   ATCABLE
+         LDA   #09
+         JMP   SYSMSG
+         RTS
+***********************
+* BLOOWY ROUNTINE     *
+* YOUR SHIP DESTROYED *
+***********************
+BLOOWY   LDA   ROOM
+         CMP   #31
+         BEQ   DELAY
+         CMP   #43
+         BEQ   DELAY
+         LDA   #32
+         STA   ROOM11+4
+         LDA   #112       
+         JMP   SYSMSG
+DELAY    INC   FLAG8      DELAY ONE TURN
+         RTS
+***********************
+* TELBACK ROUTINE     *
+* TIME UP AND TELEP.  *
+* BACK UP FROM PLANET *
+***********************
+TELBACK  LDA   #92
+         JSR   SYSMSG
+         LDA   ROOM
+         STA   RMOLD
+         LDA   #35
+         STA   ROOM
+         JSR   MOVEIT
+         RTS
+*
+*
+********************
+* DEAD END OF GAME *
+********************
+DEADY    LDA   #207       
+         JSR   SYSMSG
+DEAD1    JSR   GETLN
+         LDY   #00        
+PON2     LDA   $804,Y     
+         STA   $00,Y
+         INY
+         CPY   #$F9
+         BCC   PON2
+         LDX   $FB
+         LDY   $FC
+         JSR   SETKBD
+         JSR   SETVID
+         JSR   MVSW
+         LDA   #$8D
+         JSR   COUT
+         LDA   #$84
+         JSR   COUT
+         LDA   #$45
+         JSR   COUT
+         LDA   #$58
+         JSR   COUT
+         LDA   #$45
+         JSR   COUT
+         LDA   #$43
+         JSR   COUT
+         LDA   #$CD
+         JSR   COUT
+         LDA   #$C5
+         JSR   COUT
+         LDA   #$8D
+         JSR   COUT
+         BRK
+         CHN   PHOBOS.THREE 

@@ -1,0 +1,839 @@
+        .title "Disk I/O primitives     Copyright Dav Holle"
+        .page
+
+
+;       =====================================================
+;       N O T I C E   to all persons receiving this document:
+;       =====================================================
+;
+;       THIS PROGRAM SOURCE IS AN UNPUBLISHED WORK, FULLY PROTECTED
+;       BY THE UNITED STATES COPYRIGHT LAWS.  IT IS CONSIDERED
+;       TO BE A TRADE SECRET BELONGING TO THE COPYRIGHT HOLDER,
+;       DAVID H HOLLE.  IT IS NOT TO BE DIVULGED OR USED BY
+;       PARTIES WHO HAVE NOT RECEIVED WRITTEN AUTHORIZATION FROM
+;       HOLLE ASSOCIATES, 815 W. DOUGLAS AVE., NAPERVILLE, IL. 60540
+
+
+; diskette I/O primitives
+
+        .asect
+        .org 0  ;Zpage pure temps
+zpage   .equ *
+tmp1    .byte
+tmp2    .byte
+track   .byte
+sect    .byte
+bytcnt  .word
+npages  .byte
+dest    .byte   ;current buffer page
+zdest   .word
+bytes   .byte
+presect .byte   ;current prenibblized sector
+curtrk  .byte
+destrk  .byte
+entcode .byte
+aa      .byte
+ret     .word
+readcnt .byte
+seekcnt .byte
+retrycnt .byte
+recalcnt .byte
+zlead   .byte
+zsum    .byte
+zsec    .byte
+ztrk    .byte
+zvol    .byte
+saven0  .byte
+zlast   .equ *
+cklist  .equ 358        ;16. bytes
+shutoff .equ 0c088
+motoron .equ 0c089
+drive0  .equ 0c08a
+Q6L     .equ 0c08c
+Q6H     .equ 0c08d
+Q7L     .equ 0c08e
+Q7H     .equ 0c08f
+        .psect
+ 
+; State machine controls table:
+;
+; Q6  Q7  Function
+; --  --  --------
+; Lo  Lo  Read
+; Hi  Lo  Sense write protect
+; Lo  Hi  Write
+; Hi  Hi  Write load
+
+syncs   .equ 4e         ;has # of ff syncs found by rdadr
+
+slot    .byte 60
+volchk  .byte 0
+volexp  .byte 0
+vfound  .byte 0
+dr      .byte 0
+oldrive .byte 0
+dtrax   .byte 0,0       ;curtrk for d0,d1
+
+; seek to track
+
+seek    lda track
+seekz   ldx saven0
+        asl a           ;make it into half-track notation
+        asl curtrk      ;current track too
+        jsr seekabs
+        lsr curtrk      ;back to full-track notation
+        rts
+
+        .org origin+29  ;align nybble table
+        .nolist
+nibl    .byte 096,097,09a,09b,09d,09e,09f,0a6,0a7,0ab,0ac,0ad,0ae,0af,0b2,0b3
+        .byte 0b4,0b5,0b6,0b7,0b9,0ba,0bb,0bc,0bd,0be,0bf,0cb,0cd,0ce,0cf,0d3
+        .byte 0d6,0d7,0d9,0da,0db,0dc,0dd,0de,0df,0e5,0e6,0e7,0e9,0ea,0eb,0ec
+        .byte 0ed,0ee,0ef,0f2,0f3,0f4,0f5,0f6,0f7,0f9,0fa,0fb,0fc,0fd,0fe,0ff
+        .list
+
+; write address field
+
+wadr    ldx saven0
+        lda #0aa
+        sta aa
+        eor curtrk
+        eor retrycnt    ;sector
+        sta zsum
+        ldy #0e         ;# of syncs to do
+wsyncs  .equ *-1
+        sec
+        lda Q6H,x
+        lda Q7L,x
+        bmi wperror
+        lda #0ff        ;write sync
+        sta Q7H,x
+        cmp Q6L,x
+        pha
+        pla
+     $0 jsr rts00
+        jsr rts00
+        sta Q6H,x
+        cmp Q6L,x
+        nop
+        dey
+        bne $0
+        lda #0d5
+        jsr wnib9
+        lda #0aa
+        jsr wnib9
+        lda #096
+        jsr wnib9
+        lda aa          ;volume
+        jsr wbyte
+        lda curtrk      ;track
+        jsr wbyte
+        lda retrycnt    ;sector
+        jsr wbyte
+        lda zsum        ;checksum
+        jsr wbyte
+        lda #0de
+        jsr wnib9
+        lda #0aa
+        jsr wnib9
+        lda #0eb
+        jsr wnib9
+        lda Q7L,x
+        lda Q6L,x       ;fall thru
+
+; write data
+
+wdata   ldx saven0
+        sec
+        lda Q6H,x
+        lda Q7L,x       ;sense write protect
+wperror bmi wprot
+        lda 300
+        sta tmp1
+        lda #0ff        ;sync byte
+        sta Q7H,x       ;write 1st nibble
+        ora Q6L,x
+        pha
+        pla
+        cld
+        ldy #4
+    $99 pha
+        pla
+        jsr wnib7       ;write sync
+        dey
+        bne $99
+        lda #0d5
+        jsr wnib9
+        lda #0aa
+        jsr wnib9
+        lda #0ad        ;17
+        jsr wnib9       ;15
+        sec             ;25 - 8 extra cycles, 2 framing bits on AD
+        clv             ;23
+        tya             ;cksum:=0   21
+        ldy #56         ;p.3 index  19
+        bne $1          ; always    17
+
+     $0 lda 300,y       ;get prior 6-bit nibble 18
+     $1 eor 300-1,y     ;and xor with current nibble (cross bound) 14
+        tax             ;9
+        lda nibl,x      ;7
+        ldx saven0      ;3
+        sta Q6H,x       ;write nibble 32
+        lda Q6L,x       ;27
+        dey             ;next nibble 23
+        bne $0          ;21
+        lda tmp1        ;get prior nybble 19
+        nop             ;16
+     $2 eor 200,y       ;write p.2  14
+        tax             ;10
+        lda nibl,x      ;8
+        ldx slot        ;4
+        sta Q6H,x
+        lda Q6L,x
+        lda 200,y
+        iny
+        bne $2
+        tax
+        lda nibl,x
+        ldx saven0
+        jsr wnib0 ;write checksum
+        lda #0de
+        jsr wnib9
+        lda #0aa
+        jsr wnib9
+        lda #0eb
+        jsr wnib9
+        lda #0ff
+        jsr wnib9 ;let last nybble finish & start to write $ff
+wprot   lda Q7L,x ;turn off write
+        lda Q6L,x ;go to read mode
+        rts
+
+; wbyte: write simple nybblized byte
+
+wbyte pha       ;8
+      lsr a     ;5
+      ora aa    ;3
+      sta Q6H,x ;32
+      cmp Q6L,x ;27
+      pla       ;23
+schiz ora #0    ;19 (zapped to cmp (0,x) for xtra frame bit)
+      cmp @0,x  ;17
+      ora #0aa  ;11
+wnib9 clc       ;9
+wnib7 pha       ;7
+      pla       ;4
+wnib0 sta Q6H,x ;32
+      ora Q6L,x ;27
+rts00 rts       ;23 return to caller with 17 cycles to go
+
+ontime  .byte 01,30,28,24,20,1e,1d,1c
+offtime .byte 70,2c,26,22,1f,1e,1d,1c
+
+; seek absolute: A=new track, curtrk=old track (1/2 track notation)
+
+seekabs cmp curtrk      ;already there?
+        beq seekrts     ;  yes, exit
+        sta destrk      ;save destination track
+        lda #0
+        sta tmp2        ;accel/decel counter tmp2 = 0
+
+     $1 lda curtrk
+        sta tmp1        ;tmp1 := curtrk
+        sec
+        sbc destrk      ;Areg := curtrk - destrk
+        beq $6          ; done
+        bcs $2          ; going to lower track
+        
+        inc curtrk      ;curtrk := curtrk + 1
+        eor #0FF        ;complement it
+        bcc $3          ;always
+
+     $2 dec curtrk      ;curtrk := curtrk - 1
+        adc #0FE        ;carry is set
+        
+     $3 cmp tmp2        ;Areg := smaller of distances from ends of seek
+        bcc $4
+        lda tmp2
+
+     $4 cmp #8          ;if distance < 8, use it for acceleration/deceleration
+        bcs $5
+        tay
+
+     $5 sec
+        jsr $7
+        lda ontime,y
+        jsr delay
+        lda tmp1
+        clc
+        jsr $8
+        lda offtime,y
+        jsr delay
+        inc tmp2
+        bne $1
+
+     $6 jsr delay
+        clc
+     $7 lda curtrk
+     $8 and #3          ;access C080+N0+carry+2*(Areg mod 4)
+        rol a
+        ora saven0
+        tax
+        lda 0c080,x
+seekrts ldx saven0      ;Xreg := N0
+        rts
+
+delay   ldx #12  ;delay Areg * 100 usec
+     $2 dex
+        bne $2
+        nop
+        sec
+        sbc #1
+        bne delay
+        rts
+
+; mywait: like monitor wait, only slower
+
+mywait  pha
+     $3 sec
+        sbc #1
+        bne $3
+        pla
+        sbc #1
+        bne mywait
+        rts
+
+; chatter: recalibrate to track 0
+
+chatter lda #30         ;pretend to be on trk 48
+        sta curtrk
+        lda #0
+        jmp seekz       ;seek to 0, no matter how much it hurts
+
+; read address field
+
+rdadr   lda saven0
+        sta $7-1
+        ora #8c
+        sta $4+1
+        sta $6+1
+        lda #2
+        sta tmp1
+        ldy #0
+     $1 dey       ;24
+        beq $99   ;timeout after 0100 nybbles
+     $2 ldx #0    ;20
+        nop       ;18
+     $3 inx       ;16
+     $4 lda Q6L         ;self-modified
+        bpl $4    ;37 
+        cmp #0ff  ;35
+        beq $3    ;33
+     $5 lsr a     ;31
+        cmp #6a   ;29
+        bne $1    ;27-8=19
+        stx syncs ;17
+     $6 lda Q6L   ;14 7 0 self-modified
+        bpl $6
+        cmp #0aa        ;0aa?
+        bne $1
+        ldx #saven0     ;self-modified
+     $7 lda Q6L,x
+        bpl $7
+        eor #96         ;96?
+        bne $1
+        ldy #3
+     $8 sta tmp2        ;save checksum
+     $9 lda Q6L,x       ;odd bits
+        bpl $9
+        rol a
+        sta tmp1
+    $10 lda Q6L,x       ;even bits
+        bpl $10
+        and tmp1        ;combine 'em
+        sta zsum,y
+        eor tmp2        ;new checksum
+        dey             ;done?
+        bpl $8          ; no
+        tay             ;checksum OK?
+        bne rderr       ; no
+        clc
+        rts
+
+    $99 dec tmp1        ;give up?
+        bpl $2          ; no
+        sty syncs       ; syncs := 0
+        sec
+        rts
+
+rdoff   cmp motoron,x   ;zapped to shut off motor when we're paranoid
+rderr   sec
+rts88   rts
+
+; read 16-sector data
+
+rdata   ldx saven0
+        ldy #18
+     $0 dey             ;give up?
+        bmi rderr       ; yes
+     $1 lda Q6L,x
+        bpl $1
+     $2 cmp #0d5        ;d5?
+        bne $0          ; no
+        nop
+     $3 lda Q6L,x
+        bpl $3
+        cmp #0aa        ;aa?
+        bne $2          ; no
+        ldy #56
+     $4 lda Q6L,x ;41
+        bpl $4    ;37
+        eor #0ad  ;35   ;ad?
+        bne $2    ;33   ; no
+
+        .if locked
+        php
+        jsr rderr
+        plp
+        .endc
+
+     $5 dey       ;7
+        sty tmp1  ;5
+     $6 ldy Q6L,x ;2    ;read & translate data
+        bpl $6
+        eor 2d6,y       ;use the nybble table made by the P5A PROM
+        ldy tmp1
+        sta 300,y
+        bne $5
+     $7 sty tmp1
+     $8 ldy Q6L,x
+        bpl $8
+        eor 2d6,y
+        ldy tmp1
+        sta 200,y
+        iny
+        bne $7
+     $9 ldy Q6L,x
+        bpl $9
+        eor 2d6,y       ;checksum OK?
+        bne rdoff       ; no
+        tay
+   $100 lda Q6L,x
+        bpl $100
+        cmp @0,x        ;ignore trailer 1
+   $101 lda Q6L,x
+        bpl $101
+        cmp #0aa        ;trailer 2 OK?
+        bne rdoff       ; no
+    $11 ldx #56         ;postnybblize
+    $12 dex
+        bmi $11
+        lda 200,y       ;get byte & shift in lo 2 bits from p.3
+        lsr 300,x
+        rol a
+        lsr 300,x
+        rol a
+        sta (zdest),y   ;put the data in its final resting place
+        iny
+        cpy bytes       ;done?
+        bne $12         ; no
+        clc
+        rts
+
+; prenibblize
+
+prenib  ldx #0
+        ldy #2
+     $1 dey
+        lda (zdest),y
+        lsr a
+        rol 300,x     ;shift hi two bits into p.3
+        lsr a
+        rol 300,x
+        sta 200,y       ;put lo six bits (shifted left) into p.2
+        inx
+        cpx #56
+        bcc $1
+        ldx #0
+        tya             ;done?
+        bne $1          ; no
+        ldx #55
+     $2 lda 300,x
+        and #3f         ;strip hi two bits of p.3
+        sta 300,x
+        dex
+        bpl $2
+        rts
+
+; see if address fields can be read
+
+anyadr  lda #20
+        sta retrycnt
+     $1 jsr rdadr       ;can we read an address field?
+        bcc $2          ; yes - exit with carry clear
+        dec retrycnt    ;give up?
+        bne $1          ; no
+     $2 rts
+
+zp_hold .block zlast    ;zpage save area
+bytemap .block 10
+        .page
+
+;
+; read/write disk
+;
+; command in Yreg: 2 = write, else read
+; drive in Xreg, 0 = use the drive most recently selected
+;
+;                0..ffff, 0..7fff, 0..279
+; procedure rwdisk(bufadr,count,blocknum);
+;
+
+rdisk   ldy #1
+rwdisk  cld
+        txa
+        pha
+        ldx #zlast-1
+     $8 lda zpage,x
+        sta zp_hold,x
+        dex
+        bpl $8
+        pla
+        tax             ;drive specified?
+        beq $0          ; no
+        dex             ; yes, 1,2 --> 0,1
+        stx dr
+        
+     $0 cpy #4          ;format code?
+        beq $1          ; yes
+        cpy #2          ;write code?
+        beq $1          ; yes
+        ldy #1          ; no, force code to 1 for read
+     $1 sty entcode     ;save entry code
+
+        pull ret
+        
+        pla             ;pop block # lo
+        sta tmp1        ;hold it
+        asl a
+        and #0f
+        sta sect        ;sect := (2 * blocknum) mod 16
+        
+        pla             ;blk hi
+        lsr a
+        lda tmp1
+        ror a
+        lsr a
+        lsr a
+        sta track       ;track := blocknum div 8
+
+; get # of bytes, rounding to next highest sector for write
+
+        pla
+        sta bytcnt
+        cmp #1          ;set carry if lo byte of count is > 0
+        pla
+        adc #0          ;# of sectors is 1 more if lo byte > 0
+        dey             ;reading?
+        beq $2          ; yes, save lo byte of bytcnt
+        ldy #0          ; no, clear lo byte of bytcnt
+        sty bytcnt
+     $2 tax             ;length over 32K?
+        bpl $3          ; no
+        tya             ; yes, don't do it
+     $3 sta bytcnt+1    ;number of sectors to xfer
+        pla
+        sta zdest       ;low byte of buffer address
+        pla
+        sta dest        ;buffer page
+        
+        lda slot        ;is slot initialized?
+        bne $5          ; yes
+        lda io_Zpage    ;pick up slot value
+        sta slot
+     $5 sta saven0      ;put it in Zpage
+        lda entcode
+        cmp #4          ;format call?
+        bne $7          ; no, look at bytcnt before we leap
+
+     $6 jsr rwtrack     ;do I/O for a track
+        bcs return      ; exit on any err
+        
+        stx sect        ;sector 0
+        inc track       ;next track
+
+     $7 ldx bytcnt+1    ;any more to do?
+        bne $6          ; yes
+
+return  push ret
+
+; zp_hold --> Zpage
+
+zp_fix  txa
+        pha
+        ldx #zlast-1
+     $1 lda Zp_hold,x
+        sta zpage,x
+        dex
+        bpl $1
+        pla
+        tax
+        rts
+        .page
+
+;
+; Rwtrack: perform the I/O applicable to the current track
+;
+; track         track #
+; sect          first sector # to xfer
+; bytecnt+1     total # of sectors to xfer
+; bytcnt        # of bytes of last sector to xfer (0=all, must be 0 for write)
+;
+
+rwtrack ldy #2          ;allow 1 recalibrate
+        sty recalcnt
+        
+        ldy #9          ;allow 8 seeks
+        sty seekcnt
+        
+        ldx saven0
+        cmp Q7L,x
+        cmp Q6L,x       ;read mode
+        stx presect     ;force no-match on prenibbed-sector
+        lda dr
+        and #1          ;force drive into 0..1
+        sta dr
+        tay
+        lda dtrax,y     ;get the curtrk for this drive
+        sta curtrk
+
+;is the motor off? set the Z flag if it's stopped
+
+        tya
+        eor #1         ;get other drive
+        cmp oldrive    ;oldrive = other drive?
+        beq newdr      ; yes, pretend motor's off
+        ldy #0         ;test 256 times
+     $1 lda Q6L,x      ;get data
+        jsr rts00
+        pha
+        pla
+        cmp Q6L,x       ;same?
+        bne newdr       ; no, quit
+        dey             ; yes, is it long enuf?
+        bne $1          ;  no
+
+newdr   php             ;save result
+        lda motoron,x
+        lda dr
+        sta oldrive     ;oldrive := drive
+        ora saven0
+        tay
+        cmp drive0,y    ;select drive
+        plp             ;was motor on?
+        php
+        bne $0          ; yes
+        jsr mywait      ; no, pause to let old drive deselect
+     $0 jsr seek        ;go to the track
+        plp             ;were we running?
+        bne moton       ; yes
+        lda entcode
+        eor #2          ;writing?
+        bne moton       ; no
+        jsr mywait      ; yes, must wait for motor!
+
+; build destination & byte count lists for this track
+; entries are in physical sector order, 0..F
+
+moton   ldy #0F
+        lda #0          ;clear the checklists to 0's
+     $0 sta cklist,y
+        sta bytemap,y
+        dey
+        bpl $0
+        sta npages
+        ldy sect
+     $1 tya             ;logical --> physical sector #
+        asl a
+        cmp #10
+        bcc $2
+        sbc #0f
+     $2 tax
+        lda dest
+        sta cklist,x    ;dest --> cklist
+        inc npages      ;count sectors to do
+        inc dest        ;next dest
+        dec bytcnt+1    ;last sector?
+        bne $3          ; no
+        lda bytcnt
+        sta bytemap,x   ;last sector's byte count --> bytemap
+        jmp ready
+
+     $3 iny             ;next sector
+        cpy #10         ;end of track?
+        bcc $1          ; no
+
+ready   lda entcode
+        lsr a           ;entcode --> carry (carry set=read)
+        php             ;save on stack
+        bcs try         ;reading
+
+        eor #2          ;(4 div 2) formatting?
+        beq $4          ; yes
+        jsr anyadr      ;can we read adr fields?
+        bcc try         ; yes - don't format
+        jsr chatter     ;recalibrate
+        jsr anyadr      ;any adr fields now?
+        bcs $5          ; no, format
+        bcc try         ; yes
+        
+     $4 sta bytcnt+1    ;keep RWDISK from calling formatter again
+        jsr chatter
+     $5 ldy formatn     ;okay to format?
+        beq drverr      ; no
+        ldx #0
+        txa
+     $0 sta 200,x       ;format with zeroed sectors
+        dex
+        bne $0
+        ldx #55
+     $1 sta 300,x
+        dex
+        bpl $1
+formal  dey
+        tya
+        jsr seekz
+        lda #0
+        sta retrycnt    ;start with sect 0
+        sta wsyncs      ;write 256 leading syncs
+     $2 jsr wadr        ;format a sector
+        bcc $3          ;ok?
+        jmp error16     ; no, w/p err
+     
+     $3 lda #0e
+        sta wsyncs      ;# of inter-sector syncs
+        inc retrycnt
+        lda retrycnt
+        cmp #10         ;track done?
+        bne $2          ; no
+        jsr rdadr       ;did it work?
+        bcs drverr      ; no
+        lda zsec        ;sector 0?
+        beq formed      ; yes
+
+drverr  ldx #40         ;ioresult := 64.
+        jmp secxit
+
+formed  ldy curtrk      ;done all tracks?
+        bne formal      ; no
+        lda entcode
+        eor #4          ;format call?
+        bne try         ; no
+        jmp clcxit      ; yes
+
+try     ldy #20.
+        sty readcnt     ;max data reads/trk
+        ldy #80         ;max retries
+        sty retrycnt
+retry   dec retrycnt
+        beq recal
+        jsr rdadr
+        bcs retry
+        lda ztrk
+        cmp track       ;on the right track?
+        beq trkok       ; yes
+        sta curtrk      ; no, get oriented
+        dec seekcnt     ;too many seeks?
+        bne reseek      ; no, go seek
+
+; recalibrate?
+
+recal   dec recalcnt    ;too many recals?
+        beq drverr      ; yes
+        lda curtrk
+        lda #9
+        sta seekcnt     ;allow 8 seeks
+        jsr chatter     ;bang head against the wall
+reseek  jsr seek        ;go to track
+        bcc try         ;always
+
+volerr  ldx #20         ;ioresult := 32.
+        jmp secxit
+        
+; trk ok -- is vol & sector?
+
+trkok   ldy zvol
+        sty vfound      ;vfound := zvol
+        lda volchk      ;volume checking?
+        beq $0          ; no
+        cpy volexp      ;volume match?
+        bne volerr      ; no
+     $0 plp             ;writing?
+        php
+        bcs isitdone    ; no
+        lda zsec        ;sector must match
+        cmp presect     ;match prenibbed sector?
+        beq dowrite     ;  yep!
+        clc
+        adc #1
+        and #0f
+        sta zsec        ;consider prenibblizing for the next one
+
+isitdone ldy zsec
+        lda cklist,y    ;want this sector?
+        beq jretry      ; no
+        sta zdest+1     ; yes, set up the buffer address
+        plp             ;writing?
+        php
+        bcs doread      ; no
+        sty presect     ; yes, prenibblize
+        jsr prenib
+jretry  jmp retry
+
+doread  lda bytemap,y
+        sta bytes       ;number of bytes to postnybblize
+        jsr rdata       ;try to read it
+        bcc okio        ; good!
+        dec readcnt     ; bad - too many reads?
+        bne jretry      ;  no
+        ldx #80         ;  read err, ioresult := 128.
+        bne secxit
+
+dowrite jsr wdata
+        bcs error16     ;w/p err
+        lda #99
+        sta presect     ;clear presect
+okio    ldy zsec
+        lda #0
+        sta cklist,y    ;check off this one
+        dec npages      ;done?
+        bne jretry      ; no
+clcxit  tax             ; yes, ioresult := 0
+        clc
+        .byte 24        ;bit op hides sec
+secxit  sec
+        lda curtrk
+        ldy dr
+        sta dtrax,y     ;update this drive's curtrk
+        pla             ;fix stack
+        ldy saven0
+        lda shutoff,y   ;motor off
+        txa             ;result --> Areg
+        rts
+
+error16 ldx #10         ; bad, ioresult := 16.
+        bne secxit ;always
+
+
+;       =====================================================
+;       N O T I C E   to all persons receiving this document:
+;       =====================================================
+;
+;       THIS PROGRAM SOURCE IS AN UNPUBLISHED WORK, FULLY PROTECTED
+;       BY THE UNITED STATES COPYRIGHT LAWS.  IT IS CONSIDERED
+;       TO BE A TRADE SECRET BELONGING TO THE COPYRIGHT HOLDER,
+;       DAVID H HOLLE.  IT IS NOT TO BE DIVULGED OR USED BY
+;       PARTIES WHO HAVE NOT RECEIVED WRITTEN AUTHORIZATION FROM
+;       HOLLE ASSOCIATES, 815 W. DOUGLAS AVE., NAPERVILLE, IL. 60540
+

@@ -1,0 +1,888 @@
+        .nopatchlist
+        .absolute
+        .proc phobio
+
+origin  .equ 0b700
+        
+        .org origin
+
+trail .equ 0ed ;<--- change to $DE for normal format!
+
+zero    .equ 0
+temp    .equ 0
+tmp1    .equ 2
+tmp2    .equ 3
+bytcnt  .equ 8 ;2 bytes
+aa      .equ 0a
+pgcnt   .equ 0b
+zdestrk .equ 0c
+npages  .equ 0d
+sect    .equ 0e
+zdest   .equ 10 ;2 bytes
+zdest2  .equ 12 ;2 bytes
+ret     .equ 14 ;2 bytes
+savn0   .equ 16 ;set up by phoboot
+zslot   .equ 16
+csum    .equ 18
+zsect   .equ 19
+ztrk    .equ 1a
+zvol    .equ 1b
+timecnt .equ 1e ;2 bytes
+
+buffer  .equ 200
+sl      .equ 3c0
+track   .equ 3c1
+entcode .equ 3c2
+dest    .equ 3c3 ;2 bytes
+curtrk  .equ 3c6
+seekcnt .equ 3c7
+retrycnt .equ 3c8
+recalcnt .equ 3c9
+presect .equ 3ca ;current prenibblized sector's logical num
+virgin  .equ 3cb ;2 bytes
+checklist .equ 3d0 ;16 bytes
+
+init    .equ 0fb2f
+vtab23  .equ 0fb59
+vtab    .equ 0fb5b
+home    .equ 0fc58
+rdkey   .equ 0fd0c
+crout   .equ 0fd8e
+prbyte  .equ 0fdda
+coutz   .equ 0fdf6
+setinv  .equ 0fe80
+setnorm .equ 0fe84
+setkbd  .equ 0fe89
+setvid  .equ 0fe93
+reset   .equ 0ff59
+ROM     .equ 0c081
+
+
+; state machine controls:
+;
+; q6   q7   function
+; --   --   --------
+; lo   lo   read
+; hi   lo   sense write protect
+; lo   hi   write
+; hi   hi   write load
+
+Q6L .equ 0c08c
+Q6H .equ 0c08d
+Q7L .equ 0c08e
+Q7H .equ 0c08f
+
+        .page
+;                0..ffff, 0..7fff, 0..279
+; procedure rdisk(bufadr,count,blocknum);
+;
+rdisk   ldy #1
+        jmp entry
+
+;
+; procedure wdisk(bufadr,count,blocknum);
+;
+wdisk   ldy #2
+        jmp entry
+
+
+; write simple nybblized byte
+
+wbyte pha       ;8
+      lsr a     ;5
+      ora aa    ;3
+      sta Q6H,x ;32
+      cmp Q6L,x ;27
+      pla       ;23
+schiz ora #0    ;19 (zapped to cmp @zero,x for xtra frame bit)
+      cmp @zero,x ;17
+      ora #0aa  ;11
+wnib9 clc       ;9
+wnib7 pha       ;7
+      pla       ;4
+wnib0 sta Q6H,x ;32
+      ora Q6L,x ;27
+rts00 rts       ;23 return to caller with 17 cycles to go
+
+
+hiclr  sta 4000,y ;zap every other byte in 4000-bffe
+       iny
+       iny
+       bne hiclr
+       inc 202
+       dex
+       bne hiclr
+       lda 0c081
+       stx 0c081
+       sty 0e000 ;zap ramcard byte
+jboot  jmp 0c600
+
+
+reboot ldx sl
+       lda 0c089,x ;motor on
+       ldx #18
+       ldy #2
+       tya
+loclr  sta 800,y ;zap even bytes 802-1ffe
+       iny
+       iny
+       bne loclr
+       inc loclr+2
+       dex
+       bne loclr
+bootmove lda hiclr,y
+       sta 200,y
+       sta 380,y ;zap pg 3 stuff
+       iny
+       bpl bootmove
+       ldx #80
+       jmp 200
+
+
+; Disk reset - initialize disk vars
+
+dreset  lda virgin
+        eor #5a
+        cmp virgin+1 ;has this been done?
+        beq rts00    ; yes
+        sta virgin+1 ; no, not a virgin anymore
+        
+        lda areboot ;set up warmstart vector for autostart
+        sta 3f2
+        lda areboot+1
+        sta 3f3
+        eor #0a5
+        sta 3f4
+        
+        lda savn0 ;find current slot
+        sta sl
+        lsr a
+        lsr a
+        lsr a
+        lsr a
+        ora #0c0
+        sta jboot+2
+        rts
+
+; nybble tables
+
+ .org origin+95
+ 
+ .byte 0,0,4,98,99,8,0c,9c,10,14,18
+ .byte 0a0,0a1,0a2,0a3,0a4,0a5,1c,20,0a8,0a9,0aa,24,28,2c,30,34
+ .byte 0b0,0b1,38,3c,40,44,48,4c,0b8,50,54,58,5c,60,64,68
+ .byte 0c0,0c1,0c2,0c3,0c4,0c5,0c6,0c7,0c8,0c9,0ca,6c,0cc,70,74,78
+ .byte 0d0,0d1,0d2,7c,0d4,0d5,80,84,0d8,88,8c,90,94,98,9c,0a0
+ .byte 0e0,0e1,0e2,0e3,0e4,0a4,0a8,0ac,0e8,0b0,0b4,0b8,0bc,0c0,0c4,0c8
+ .byte 0f0,0f1,0cc,0d0,0d4,0d8,0dc,0e0,0f8,0e4,0e8,0ec,0f0,0f4,0f8,0fc
+prenibs .byte 0,0,0,96,2,0,0,97,1,0,0,9a,3,0,0,9b
+ .byte 0,2,0,9d,2,2,0,9e,1,2,0,9f,3,2,0,0a6
+ .byte 0,1,0,0a7,2,1,0,0ab,1,1,0,0ac,3,1,0,0ad
+ .byte 0,3,0,0ae,2,3,0,0af,1,3,0,0b2,3,3,0,0b3
+ .byte 0,0,2,0b4,2,0,2,0b5,1,0,2,0b6,3,0,2,0b7
+ .byte 0,2,2,0b9,2,2,2,0ba,1,2,2,0bb,3,2,2,0bc
+ .byte 0,1,2,0bd,2,1,2,0be,1,1,2,0bf,3,1,2,0cb
+ .byte 0,3,2,0cd,2,3,2,0ce,1,3,2,0cf,3,3,2,0d3
+ .byte 0,0,1,0d6,2,0,1,0d7,1,0,1,0d9,3,0,1,0da
+ .byte 0,2,1,0db,2,2,1,0dc,1,2,1,0dd,3,2,1,0de
+ .byte 0,1,1,0df,2,1,1,0e5,1,1,1,0e6,3,1,1,0e7
+ .byte 0,3,1,0e9,2,3,1,0ea,1,3,1,0eb,3,3,1,0ec
+ .byte 0,0,3,0ed,2,0,3,0ee,1,0,3,0ef,3,0,3,0f2
+ .byte 0,2,3,0f3,2,2,3,0f4,1,2,3,0f5,3,2,3,0f6
+ .byte 0,1,3,0f7,2,1,3,0f9,1,1,3,0fa,3,1,3,0fb
+ .byte 0,3,3,0fc,2,3,3,0fd,1,3,3,0fe,3,3,3,0ff
+
+; seek tables
+
+sktab1  .byte 1,30,28,24,20,1e,1d,1c
+sktab2  .byte 70,2c,26,22,1f,1e,1d,1c
+
+; write 10-bit ff sync
+
+ffsync lda #0ff
+       clc
+       pha
+       pla
+       sta Q6H,x
+       ora Q6L,x
+       cmp @zero,x ;8 cycles = 2 framing bits
+       clc
+       rts
+
+
+; pre-nibblize for write
+
+prenib ldy #56
+       lda #0
+$1     sta buffer+0ff,y
+       dey
+       bne $1
+$2     ldx #55
+$3     lda @zdest,y
+       and #0fc
+       sta buffer,y
+       eor @zdest,y
+       iny
+       cmp #2
+       ora buffer+100,x
+       ror a
+       ror a
+       sta buffer+100,x
+       dex
+       bpl $3
+       cpy #2
+       bne $2
+       ldx sl
+       rts
+
+
+wprotec jmp wprot
+
+; write address & data field, sl=n0, temp = sector # to write
+ 
+wadr ldx sl
+ lda track ;ztrk := track
+ sta ztrk
+ lda #0aa
+ sta aa
+ ldy #0a
+ sec
+ lda Q6H,x
+ lda Q7L,x ;write protected?
+ bmi wprotec ; yes, exit with carry set
+ lda #0ff ;sync 
+ sta Q7H,x ;40
+ cmp Q6L,x ;35
+ pha ;31
+ pla
+ecsync jsr rts00 ;24
+ lda 0c054 ;12
+ ora #0ff ;8
+ cmp @zero,x ;¶
+ sta Q6H,x ;40
+ cmp Q6L,x ;35
+ nop ;31
+ dey ;29
+ bne ecsync ;27
+ cmp @zero,x ;25
+ nop ;19
+ jsr ffsync ;final leadin with ff syncs 
+ jsr ffsync
+ jsr ffsync
+ jsr ffsync
+leadin lda #0d5
+ jsr wnib9 
+wradaa lda #0aa
+ jsr wnib9
+ lda #96
+ jsr wnib9
+ lda ztrk ;vol
+ jsr wbyte
+ lda ztrk ;trk
+ jsr wbyte
+ lda temp ;sect
+ jsr wbyte
+ lda temp ;csum
+ jsr wbyte
+ lda #trail
+ jsr wnib9
+ lda #0aa
+ jsr wnib9
+ jsr ffsync
+ jsr ffsync
+ lda Q7L,x ;cycle the controller back to read mode
+ lda Q6L,x
+
+; write data, sl=n0
+
+write sec
+      ldx sl
+      stx tmp1 ;save slot
+      lda Q6H,x
+      lda Q7L,x ;write protected?
+      bmi wprot ; yes, exit with carry set
+      lda buffer+100
+      sta tmp2
+      lda #0ff
+      sta Q7H,x ;write sync
+      ora Q6L,x ;35
+      pha ;31
+      pla ;28
+      pha ;24
+      pla ;21
+      jsr ffsync ;17
+      jsr ffsync
+      jsr ffsync
+      jsr ffsync
+      jsr ffsync
+      lda #0d5
+      jsr wnib9
+wraa  lda #0aa
+      jsr wnib9
+      lda #0ad  ;17
+      jsr wnib9
+      ldy #56 ;21 (4 extra cycles for framing bit on AD)
+      lda #0 ;cksum bias=0 (19)
+      beq wr2 ;always (17)
+
+wr1   lda buffer+100,y
+wr2   eor buffer+0ff,y ;14
+      tax ;9
+      lda prenibs+3,x ;7
+      ldx tmp1 ;3
+      sta Q6H,x
+      lda Q6L,x
+      dey
+      bne wr1
+      lda tmp2
+      nop
+$1    eor buffer,y
+      tax
+      lda prenibs+3,x
+      ldx sl
+      sta Q6H,x
+      lda Q6L,x
+      lda buffer,y
+      iny
+      bne $1
+      tax
+      lda prenibs+3,x
+      ldx tmp1
+      jsr wnib0
+      lda #trail
+      jsr wnib9
+      lda #0aa
+      jsr wnib9
+      jsr ffsync
+      lda Q7L,x ;turn off write
+wprot lda Q6L,x ;set read mode
+      rts
+
+
+; read addr field, sl=n0
+
+rdadr  ldx sl ;get slot
+   ldy #0fc ;max tries=8
+   sty tmp2
+rdadr2 iny
+   bne $1
+   inc tmp2   ;too many tries?
+   beq badxit ;  yes
+$1 lda Q6L,x  ;look for D5 AA 96
+   bpl $1 ;29
+isitd5 ora #1 ;27
+   cmp #0d5 ;25
+   bne rdadr2 ;23
+$1 lda Q6L,x ;21 14 7 0
+   bpl $1
+rdadaa cmp #0aa
+   bne isitd5
+   ldy #3
+$1 lda Q6L,x
+   bpl $1
+   cmp #96
+   bne isitd5
+   lda #0 ;cksum bias=0
+nextad sta tmp1 ;hold on to cksum
+rdodd  lda Q6L,x ;read odd bits
+   bpl rdodd
+   rol a         ;position 'em
+   sta tmp2      ;hold 'em
+rdeven lda Q6L,x ;read oven bits
+   bpl rdeven    ;29
+   and tmp2      ;combine with odd bits ;27
+   sta csum,y    ;save the byte ;24
+   eor tmp1      ;calc cksum ;19
+   dey           ;done? ;16
+   bpl nextad    ;  no ;14
+   tay           ;  yes, cksum=0? ;12
+   bne badxit    ;    no ;10
+   nop           ;8
+$1 lda Q6L,x     ;6 -1  better 1 cycle late than 1 early
+   bpl $1
+   cmp #trail    ;check trail mark
+   bne badxit
+   clc
+   rts
+      
+ .ascii "(C) 1982 Dav Holle"
+ 
+badxit sec
+       rts
+
+
+; read data, sl=n0
+
+read  ldx sl ;get slot
+      stx tmp1
+      txa
+      ora #8c ;develop absolute disk controller addr
+      sta read5+1 ;update absolute operands in the code
+      sta read7+1
+      sta read8+1
+      sta read9+1
+      sta readc+1
+; update the code to point to the user buffer
+      lda zdest
+      ldy zdest+1
+      sta readb+1
+      sty readb+2
+      sec
+      sbc #54
+      bcs read1
+      dey ;do borrow
+      sec
+read1 sta reada+1 ;buffer-054
+      sty reada+2
+      sbc #57
+      bcs read2
+      dey
+read2 sta read6+1 ;buffer-0ab
+      sty read6+2
+      ldy #20 ;allow 32 retries
+read3 dey ;too many tries?
+      beq badxit ; yes
+$1    lda Q6L,x  ; no, look for D5 AA AD
+      bpl $1
+risd5 eor #0d5
+      bne read3
+      nop
+$1    lda Q6L,x
+      bpl $1 ;29
+readaa cmp #0aa ;27
+      bne risd5 ;25
+      nop ;23
+$1    lda Q6L,x ;21 14 7 0
+      bpl $1 ;33
+      cmp #0ad ;31
+      bne risd5 ;29
+      ldy #0aa ;27
+      lda zvol ;cksum bias=0 ;25
+      inc 4e ;20
+read4 sta tmp2 ;keep cksum ;17
+read5 ldx Q6L ;14 7 0
+      bpl read5
+      lda prenibs-100,x
+      sta buffer+56,y
+      eor tmp2
+      iny
+      bne read4
+      ldy #0aa
+      bne read7
+read6 sta buffer-0ab,y ;self-modified
+read7 ldx Q6L
+      bpl read7
+      eor prenibs-100,x
+      ldx buffer+56,y
+      eor prenibs,x
+      iny
+      bne read6
+      pha
+      and #0fc
+      ldy #0aa
+read8 ldx Q6L
+      bpl read8
+      eor prenibs-100,x
+      ldx buffer+56,y
+      eor prenibs+1,x
+reada sta buffer-54,y ;self-modified
+      iny
+      bne read8
+read9 ldx Q6L
+      bpl read9
+      and #0fc
+      ldy #0ac
+readd eor prenibs-100,x
+      ldx buffer+54,y
+      eor prenibs+2,x
+readb sta buffer,y ;self-modified
+readc ldx Q6L
+      bpl readc ;29
+      iny ;27
+      bne readd ;25
+      and #0fc ;23
+      eor prenibs-100,x ;21
+      ldx tmp1 ;17
+      tay ;14
+      bne readbad ;cksum err ;12
+      bit 0 ;10
+$1    lda Q6L,x ;7 0
+      bpl $1
+      cmp #trail
+      bne readbad
+      clc
+      .byte 24 ;bit op hides sec
+readbad sec
+      pla
+      ldy #55
+      sta @zdest,y
+      rts
+
+
+; is disk motor off?  x=n0
+; returns with z flag set if it's stopped
+
+ismotoff ldy #0 ;test 256 times
+notsure  lda Q6L,x ;get data
+         jsr tstdelay
+         pha
+         pla
+         cmp Q6L,x    ;same?
+         bne tstdelay ; no, quit
+         dey          ; yes, is it long enuf?
+         bne notsure  ;  no
+tstdelay rts
+
+; seek absolute: X=N0, A=new track, curtrk=old track (1/2 track notation)
+
+seekabs stx zslot       ;save N0
+        sta zdestrk     ;save destination track
+        cmp curtrk      ;already there?
+        beq seekrts     ;  yes, exit
+        lda #0
+        sta tmp2        ;tmp2 = 0
+
+sk1     lda curtrk
+        sta tmp1        ;tmp1 = curtrk
+        sec
+        sbc zdestrk     ;Areg = curtrk - destrk
+        beq sk6         ;  done
+        bcs skdown      ;  going to lower track
+        
+        eor #0ff        ;complement it
+        inc curtrk      ;curtrk = curtrk + 1
+        bcc skup        ;always
+
+skdown  adc #0FE        ;carry is set
+        dec curtrk      ;curtrk = curtrk - 1
+
+skup    cmp tmp2        ;if Areg < tmp2 then Areg = tmp2
+        bcc sk4
+        lda tmp2
+
+sk4     cmp #8          ;if Areg < 8 then Yreg = Areg
+        bcs sk5
+        tay
+
+sk5     sec
+        jsr sk7
+        lda sktab1,y
+        jsr delay
+        lda tmp1
+        clc
+        jsr sk8
+        lda sktab2,y
+        jsr delay
+        inc tmp2
+        bne sk1
+
+sk6     jsr delay
+        clc
+sk7     lda curtrk
+sk8     and #3          ;access C080+N0+carry+2*(Areg mod 4)
+        rol a
+        ora zslot
+        tax
+        lda 0c080,x
+        ldx zslot       ;Xreg = N0
+seekrts rts
+
+delay  ldx #11          ;delay Areg * 100 usec
+delay2 dex
+       bne delay2
+       inc timecnt
+       bne $3
+       inc timecnt+1
+$3     sec
+       sbc #1
+       bne delay
+       rts
+
+
+;
+; common entry for read & write (code in y-reg)
+;
+entry   cld
+        sei
+        cpy #1
+        beq entry1
+        ldy #2
+entry1  sty entcode ;save entry code
+        jsr dreset
+
+        pla      ;pop return addr
+        sta ret
+        pla
+        sta ret+1
+ 
+        pla             ;pop block # lo
+        sta bytcnt      ;  -->bytcnt
+        asl a           ;  * 2
+        and #0f         ;  mod 16
+        sta sect        ;    -->sect
+        pla     ;blk hi
+        lsr a
+        lda bytcnt ;get block # lo
+        ror a      ;  div 8
+        lsr a
+        lsr a
+        sta track  ;    -->track
+
+; get # of bytes, rounding to next highest sector for write
+
+        pla
+        sta bytcnt
+        cmp #1          ;set carry if lo byte of count is > 0
+        pla
+        adc #0          ;# of sectors is 1 more if lo byte > 0
+        dey             ;reading?
+        beq id059       ; yes, save lo byte of bytcnt
+        dey             ; no, clear lo byte of bytcnt
+        sty bytcnt
+id059   sta bytcnt+1    ;number of sectors to xfer
+    
+; get buffer address
+  
+      pla
+      sta dest
+      sta zdest2
+      pla
+      sta dest+1
+
+      lda bytcnt+1      ;anything to do?
+      beq okretn        ; no
+
+; clear the checklist to 0's
+
+newlist ldy #0F
+        lda #0
+clrlist sta checklist,y
+        dey
+        bpl clrlist
+
+; Compute how many pages to read from this track:
+; if (bytcnt+1) < 16-sect then npages=(bytcnt+1) else npages=16-sect
+
+        lda #10
+        sec
+        sbc sect
+        cmp bytcnt+1
+        bcc id09f
+        lda bytcnt+1
+id09f   sta npages
+        sta pgcnt ;pgcnt=npages
+
+        jsr rwtrack ;do I/O for this track
+        bcs return ;exit on any err
+
+        lda #0 ;start on next trk
+        sta sect
+        inc track
+
+        lda dest+1 ;bump ahead by npages
+        adc npages ;carry is clear
+        sta dest+1
+
+        lda bytcnt+1 ;decrement bytcnt by npages
+        sec
+        sbc npages
+        sta bytcnt+1 ;any more to read?
+        bne newlist  ; yes
+        ldy bytcnt   ;any fraction of a page to move? (only for read)
+        beq okretn   ; no
+mov2    dey
+        lda buffer,y    ;move bytes from disk buffer to user buffer
+        sta @zdest2,y
+        tya             ;more?
+        bne mov2        ; yes
+okretn  clc
+        .byte 24
+return  sec
+        lda ret+1
+        pha
+        lda ret
+        pha
+        rts
+
+;
+; Rwtrack is similar to RWTS in Apple DOS.  Thanks to the contiguous
+; nature of Pascal files, it can perform all the the I/O for a track
+; in one call, minimizing rotational latency by accessing the sectors
+; in the order they're encountered on the diskette.
+;
+; track         track #
+; sect          first sector # to xfer
+; pgcnt         # of sectors on this track to xfer
+; bytecnt+1     total # of sectors to xfer
+; bytcnt        # of bytes of last sector to xfer (0=all, must be 0 for write)
+;
+rwtrack ldy #2          ;allow 1 recalibrate
+        sty recalcnt
+        ldy #0A         ;allow 9 seeks
+        sty seekcnt
+        ldx sl
+        jsr ismotoff   ;stopped?
+        php             ;save result
+        lda 0c089,x     ;motor on
+samedrive cmp 0c08a,x   ;select drive 1
+        
+        lda #0ef
+        sta timecnt
+        lda #0d8
+        sta timecnt+1
+       
+running lda track
+        jsr seek        ;go to the track
+        plp             ;were we running?
+        bne moton       ; yes
+        lda entcode
+        cmp #2          ;writing?
+        bne moton       ; no
+coolit  ldy #12         ; yes, speed's critical, wait for motor
+cool2   dey
+        bne cool2
+        inc timecnt
+        bne coolit
+        inc timecnt+1
+        bne coolit
+
+moton lda entcode
+      ror a ;entcode --> carry (carry set=read)
+      php   ;save on stack
+      bcs try ;reading
+      ldy #30
+      sty presect ;force no-match on prenibbed-sector
+      lda sect ;should we init?
+      bne try ; no
+      sty curtrk ;pretend to be on trk 48
+      sta temp ;start with sect 0
+      jsr seek ;seek to 0, no matter how much it hurts
+      jsr prenib
+format jsr wadr
+      inc temp
+      lda temp
+      cmp #10
+      bne format
+try   ldy #99 ;max retries
+      sty retrycnt
+retry dec retrycnt
+      beq recal
+      ldx sl
+      jsr rdadr
+      bcs retry
+      lda ztrk          ;is track found...
+      cmp curtrk        ;...the right track?
+      beq trkok         ; yes
+      sta curtrk        ; no, get oriented
+      dec seekcnt       ;too many seeks?
+      bne reseek        ; no, go seek
+
+; recalibrate
+
+recal  dec recalcnt     ;too many recals?
+       beq drverr       ; yes
+       lda curtrk
+       pha              ;preserve curtrk
+       lda #0A
+       sta seekcnt      ;allow 9 seeks
+       lda #30          ;pretend to be on trk 48
+       sta curtrk
+       lda #0
+       jsr seek  ;seek to 0, no matter how much it hurts
+       pla       ;get back curtrk
+reseek jsr seek  ;go there
+       jmp try
+
+drverr  pla     ;fix stack
+jsecxit jmp secxit
+
+; trk ok -- is sector?
+
+trkok   plp             ;writing?
+        php
+        bcs isitdone    ; no
+        lda zsect       ; yes, sect must match
+        cmp presect     ;   got it?
+        beq dowrite     ;     yep!
+        clc
+        adc #1
+        and #0f
+        cmp presect     ;will the prenibblized sector be next?
+        beq retry       ; yes
+        sta zsect       ; no - let's think about prenibblizing for the next one
+
+isitdone ldy zsect
+        lda checklist,y ;is this sector already done?
+        beq notdone     ; no
+        jmp retry       ; yeah - forget it
+
+; physical --> logical sector #, test for sector in range
+
+notdone tya             ;get physical #
+        lsr a           ; div 2
+        bcc even
+        ora #8          ;add 8 if it was odd
+even    sec
+        sbc sect        ;deduct starting sector
+        bcc jretry      ;  too small!
+        tay
+        clc
+        adc dest+1      ;compute addr in buffer
+        iny
+        cpy bytcnt+1    ;is this the last data sector?
+        bcc setdest     ;  no
+        bne jretry      ;  no - past it
+        ldy bytcnt      ;  yes, is this a partial sector?
+        beq setdest     ;    no
+        sta zdest2+1    ;    yes, save the real buffer addr, but use 0200
+        ldy #0
+        lda #2
+        bcs sdest2 ;always
+
+setdest ldy dest
+sdest2  sty zdest       ;zdest=the buffer addr for this sector
+        sta zdest+1
+        plp             ;writing?
+        php
+        bcs doread      ; no
+        jsr prenib      ; yes, prenibblize (while waiting for it)
+        lda zsect
+        sta presect     ;remember which one we prenibblized
+jretry  jmp retry
+
+doread  jsr read
+        bcs jretry      ; bad read
+okio    ldy zsect
+        lda #0ff
+        sta checklist,y ;check off this one
+        sta presect     ;check off presect
+        dec pgcnt       ;done?
+        bne jretry      ;  no
+        plp             ;  yep - fix stack
+clcxit  clc
+        .byte 24        ;bit op hides sec
+secxit  sec
+        lda 0c088,x     ;motor off
+        rts
+
+dowrite jsr write
+        bcc okio        ; good write
+        pla             ; else fix stack, write prot err
+        bcs secxit ;always
+
+areboot .word reboot
+
+; seek  a=track
+
+seek    ldx sl
+        cmp 0c080,x     ;all phases off
+        cmp 0c082,x
+        cmp 0c084,x
+        cmp 0c086,x
+        asl a           ;make it into half-track notation
+        asl curtrk      ;current track too
+        jsr seekabs
+        lsr curtrk      ;back to full-track notation
+zebra   rts
+
+      .end

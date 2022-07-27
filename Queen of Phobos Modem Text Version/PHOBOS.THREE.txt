@@ -1,0 +1,266 @@
+ZOMBIE   INC   FLAG5      ZOMBIE DEAD FLAG
+         LDA   SALT
+         CMP   #$FF
+         BEQ   ZOMBIE2
+         CMP   ROOM
+         BEQ   ZOMBIE2
+         LDA   #214
+         JSR   SYSMSG
+         JMP   DEADY
+ZOMBIE2  LDA   ROOM
+         STA   DZOMB
+         LDA   #215
+         JMP   SYSMSG
+************************
+* LAZER  ANIMATE RTN.  * 
+************************
+LAZER    LDA   #212       
+         JSR   SYSMSG
+         JMP   DEADY
+************************
+* LAZERB ANIMATE RTN.  * 
+************************
+LAZERB   LDA   #46        
+         STA   RMOLD
+         LDA   #50
+         STA   ROOM
+         JSR   MOVEIT
+         LDA   #50
+         STA   ROOM45+4
+         STA   ROOM47
+         INC   FLAG9      LAZER DESTROYED
+         LDA   #213       
+         JMP   SYSMSG
+************************
+*  FLOAT AWAY ANIMATION*
+************************
+FLOAT    LDA   #226       
+         JSR   SYSMSG
+         JMP   DEADY
+**************************
+* LAUNCH SHUTTLE ANIM.   *
+**************************
+LAUNCH   LDA   MASK
+         CMP   #$FF
+         BEQ   WON
+         CMP   ROOM
+         BEQ   WON
+         LDA   MASK2
+         CMP   #$FF
+         BEQ   WON
+         LDA   #227       
+         JSR   SYSMSG
+         LDA   #228       
+         JSR   SYSMSG
+         JMP   DEADY
+WON      LDA   #227       
+         JSR   SYSMSG
+         LDA   #229       
+         JSR   SYSMSG
+         JMP   DEAD1      
+***********************
+* IRONCLAW ANIMATE    *
+***********************
+IRONCLAW INC   FLAG11
+         LDA   FLAG11
+         SEC
+         SBC   #02
+         STA   FLAG12
+         CLC
+         LDA   FLAG12
+         ADC   FLAG12
+         ADC   FLAG12
+         TAY
+         LDA   #00
+         STA   SMALL,Y
+         LDA   ROOM
+         STA   CARDS,Y
+         CLC
+         LDA   #199       
+         ADC   FLAG11
+         JSR   SYSMSG
+         LDA   FLAG11
+         CMP   #02
+         BNE   CLW2
+         LDA   #20        
+         STA   OBJVAL+113 
+         RTS
+CLW2     CMP   #03
+         BNE   CLW3
+         LDA   #21         
+         STA   OBJVAL+109 
+         RTS
+CLW3     CMP   #04
+         BNE   CLW4
+         LDA   #22        
+         STA   OBJVAL+110 
+         RTS
+CLW4     CMP   #05
+         BNE   CLW5
+         LDA   #23        
+         STA   OBJVAL+114 
+         RTS
+CLW5     LDA   #24        
+         STA   OBJVAL+111 
+         STA   OBJVAL+112
+         RTS
+*
+********************
+* RANDOM NUMBER GEN*
+********************
+RANDOM   LDA   RNDL
+         BNE   NOTO
+         LDA   #01
+NOTO     TAX
+         AND   #$8E
+         BEQ   RANDO
+SHIFT    TXA
+SHIFT2   ASL   A
+         BCC   SHIFT2
+         BEQ   EXOR
+RANDO    TXA
+         ASL   A
+         SBC   RNDH
+         STA   RNDL
+         INC   RNDH
+         RTS
+EXOR     TXA
+         ASL   A
+         SEC
+         ADC   RNDH
+         STA   RNDL
+         INC   RNDH
+         RTS
+*
+************************
+* MONSTER MOVEMENT     *
+************************
+BMOVE    LDY   #00
+         STY   UNRATH
+BB1      LDA   MONSTER,Y
+         BEQ   BB2
+         STA   MAX
+         JSR   CMOVE
+         CMP   MAX
+         BEQ   BB2        NO MOVEMENT
+         LDY   UNRATH
+         STA   MONSTER,Y
+         CMP   ROOM
+         BEQ   BB3        ENTER ROOM
+         LDA   MAX
+         CMP   ROOM
+         BEQ   BB4        LEFT ROOM
+BB2      LDY   UNRATH
+         INY
+         INY
+         INY
+         STY   UNRATH
+         CPY   #10
+         BCC   BB1
+         RTS
+BB3      LDA   #38        ENTER
+         JSR   SYSMSG
+         JMP   BB2
+BB4      LDA   #39        LEFT
+         JSR   SYSMSG
+         JMP   BB2
+*
+CMOVE    LDA   MASK
+         CMP   #48
+         BEQ   CMOVEA     OK
+         LDA   ROOM       MONSTER ATTACK
+         CMP   #51
+         BCS   CCMZ
+         LDA   MAX
+         CMP   ROOM
+         BEQ   AMBUSH
+CCK      BCS   CCH
+         CLC
+         ADC   #01
+         RTS
+CCH      SEC
+         SBC   #01
+         RTS
+AMBUSH   JSR   DESCRP
+         JSR   PDIR
+         JSR   POBJ
+         LDA   #234
+         JSR   SYSMSG
+         JMP   DEADY
+CCMZ     LDA   MAX
+         CMP   #17
+         JMP   CCK
+*
+CMOVEA   LDA   MAX
+         STA   RMOLD
+         LDX   #01
+         LDA   #>RMDIR
+         STA   CKLIN
+         LDA   #<RMDIR
+         STA   CKLIN+1
+CC1      CPX   MAX
+         BEQ   CC2
+         INX
+         JSR   CREEP8
+         JMP   CC1
+CC2      JSR   RANDOM
+         CMP   #08
+         BCS   CC2
+         TAY
+         LDA   (CKLIN),Y
+         BEQ   CC3
+         CMP   #51
+         BCS   CC3
+         RTS
+CC3      LDA   MAX
+         RTS
+***************
+* FIRE RTN    *
+***************
+FIRE     JSR   SYNTAX
+         CMP   #$FF
+         BNE   NOFIRE1
+         LDA   HOLD
+         CMP   #09
+         BCS   NOFIRE2
+         CMP   #07
+         BEQ   NOFIRE2
+         STA   X          WEAPON 
+         LDA   POINT
+         STA   XH
+         LDA   POINT+1
+         STA   YH
+         LDA   #29
+         STA   FLAG2
+         JSR   MANDRX
+         LDA   #00
+         STA   FLAG2
+         CPY   #$FF
+         BEQ   NOFIRE3
+         LDA   VERBH
+         STA   NOUNH
+         JSR   SYNTAX
+         CMP   ROOM
+         BNE   NOFIRE4
+         LDA   HOLD
+         CMP   #13
+         BCC   NOFIRE2
+         CMP   #17
+         BCS   NOFIRE2    
+         STA   Y
+         LDA   X
+         STA   HOLD
+         LDA   XH
+         STA   POINT
+         LDA   YH
+         STA   POINT+1
+         JMP   ATTACKA
+NOFIRE1  LDA   #24
+         JMP   SYSMSG
+NOFIRE2  LDA   #40
+         JMP   SYSMSG
+NOFIRE3  JMP   TEND       HUH?
+NOFIRE4  LDA   #21
+         JMP   SYSMSG
+*
+         CHN   PHOBOS.TABLE

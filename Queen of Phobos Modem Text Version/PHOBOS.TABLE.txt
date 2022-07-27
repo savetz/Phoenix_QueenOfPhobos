@@ -1,0 +1,478 @@
+***********************
+*                     *
+* INSTUCTIONS         *
+*                     *
+***********************
+*
+INSTR    LDA   #>INST     
+         STA   CKLIN
+         LDA   #<INST
+         STA   CKLIN+1
+         LDY   #00
+INSTW3   LDA   (CKLIN),Y  
+         BEQ   INSTLOP    
+         JSR   FOUND
+         LDA   $E4        LOOK FOR CTRL K
+         CMP   #$8B       CTRL K
+         BEQ   INSTLOP
+         CLC
+         LDA   CKLIN
+         ADC   #$01
+         STA   CKLIN
+         BCC   INSTW3
+         INC   CKLIN+1
+         JMP   INSTW3
+*
+INSTLOP  JSR   RANDOM
+         LDA   $C0A6      MODEM STATUS 
+         AND   #$01
+         BEQ   INSTLOP
+         LDA   #00
+         STA   STROBE
+         RTS   
+         LST   OFF
+* 
+INST     DCI   /                  THE QUEEN OF PHOBOS/ 
+         DCI   /COPYRIGHT (C)1982 PHOENIX SOFTWARE INC./ 
+         DCI   /                   ALL RIGHTS RESERVED./ 
+         DCI   /          / 
+         DCI   /          / 
+         DCI   /          / 
+         DCI   /STORY     & ARTWORK BY WILLIAM R. CRAWFORD/ 
+         DCI   /          / 
+         DCI   /             PROGRAMMING BY PAUL L. BERKER./ 
+         DCI   /          / 
+         DCI   /THANKS    TO DAV HOLLE & ADRIAN FERRET/ 
+         DCI   /          / 
+         DCI   /THIS      IS A TEXT VERSION OF WHAT IS A/ 
+         DCI   /HIGH-RES. ADVENTURE GAME. NOW ON SALE/
+         DCI   /AT        MOST COMPUTER STORES. SEE ADDS IN    SOFTALK UNDER PHOENIX.(JUNE PG.63)/ 
+         DCI   /IT        IS WRITTEN IN ASSEMBLY LANG. FOR/ 
+         DCI   /3.3       DOS APPLE II OR II+, 48K/
+         DCI   /THE       GAME ALSO HAS ANIMATION SEQUENCES IN/
+         DCI   /SEVERAL   PLACES. AND MOST OBJECTS ARE/
+         DCI   /ARE       RANDOMLY PLACED. THE PRICE IS $34.95/
+         DCI   /ORDER     DIRECT FROM PHOENIX SOFTWARE BY/
+         DCI   /SENDING   CHECK,VISA OR MASTERCARD  TO:/
+         DCI   /            PHOENIX SOFTWARE/
+         DCI   /            64 LAKE ZURICH DRIVE/
+         DCI   /            LAKE ZURICH, IL. 60047/
+         DCI   " OR PHONE 312/438-4850"
+         DCI   /          /
+         DCI   /CTRL-K    TWICE TO ABORT LISTING./
+         DCI   /          /
+         DCI   /TWO       WEEKS AGO A DERELICT STARLINER WAS  DISCOVERED CIRCLING ONE OF THE/
+         DCI   /MOONS     OF SCALUS III. THE SHIP WAS FOUND TO BE OF MARTIAN ORIGIN,/
+         DCI   /MAKING    IT OVER TEN THOUSAND YEARS OLD.  THIS ALONE WOULD BE ENOUGH/
+         DCI   /TO        MAKE IT OF GREAT ARCHEOLOGICAL VALUE; HOWEVER, THIS PARTICULAR/
+         DCI   /VESSEL    IS BELIEVED TO BE THE LEGENDARY  "QUEEN OF PHOBOS", LOST/
+         DCI   /SOMEWHERE NEAR THE TRIFFID NEBULA APPROXIMATELY 9450 B.C. CHIEF/
+         DCI   /AMONG     THE LIST OF THE SHIP'S ILLUSTRIOUS PASSENGERS WAS RAHNK III, THEN/
+         DCI   /PHARAOH   OF THE NOW EXTINCT MARTIAN RACE. MORE IMPORTANTLY, THE SHIP/
+         DCI   /WAS       CARRYING IN ITS TIGHTLY GUARDED HOLD THE MASK OF KUH-THU-LU,/
+         DCI   /SYMBOL    OF THE PHARAOH'S STRENGTH AND    POWER (THERE ARE THOSE WHO/
+         DCI   /CONTEND   THAT THE MASK WAS MORE THAN A   SYMBOL, THAT IT WAS THE SOURCE/
+         DCI   /OF        THE PHARAOH'S POWER, BUT THAT HAS    NEVER BEEN PROVEN.) IT IS NOT/
+         DCI   /KNOWN     WHY THE PHARAOH CHOSE TO TRAVEL ON A COMMERCIAL PASSENGER/
+         DCI   /LINER,    OR WHY HE DEEMED IT NECESSARY TO BRING THE MASK WITH HIM ON A/
+         DCI   /DECIDEDLY HAZARDOUS JOURNEY. ALL THAT IS KNOWN FOR CERTAIN IS THAT/
+         DCI   /WITH      THE LOSS OF THE MASK, THE EMPIRE   WAS PLUNGED INTO A/
+         DCI   /STATE     OF CHAOS AND CIVIL WAR THAT       BROUGHT ABOUT THE EXTINTION OF THE/
+         DCI   /MARTIAN   RACE IN LESS THAN 1200 YEARS. AS MAR'S NEAREST LIVING RELATIVE/
+         DCI   /(THERE    IS SOME INCONCLUSIVE EVIDENCE    THAT HOMO SAPIENS ARE DIRECTLY/
+         DCI   /DESCENDED FROM THE MARTIAN RACE) THE    GOVERNMENT OF EARTH WAS/
+         DCI   /AWARDED   EXCLUSIVE SALVAGE RIGHTS TO THE "QUEEN OF PHOBOS" BY THE/
+         DCI   /FEDERATION OF PLANETS, AND A TIGHT      SECURITY NET WAS THROWN UP AROUND/
+         DCI   /THE       DERELICT. HOWEVER, THERE ARE HOLES  IN EVEN THE TIGHTEST OF NETS,/
+         DCI   /AND       FOUR THIEVES ARE AFTER THE MASK OF  KUH-THU-LU, AS IT IS REPUTED TO/
+         DCI   /BE        MADE OF MARTIAN SOAPSTONE AND WILL   FETCH A HANDSOME PRICE ON THE/
+         DCI   /BLACK     MARKET. THESE ARE FOUR RUTHLESS   THIEVES WHO WILL STOP AT NOTHING/
+         DCI   /TO        OBTAIN IT. YOUR MISSION THEN, IS TO  RECOVER THE MASK OF KUH-THU-LU/
+         DCI   /BEFORE    THE LOOTERS DO AND RETURN IT     SAFELY TO BASE. YOU SHOULD/
+         DCI   /BE        WITHIN SIGHT OF THE DERELICT NOW.    GOOD LUCK AND GODSPEED./
+         DCI   /          / 
+         DCI   /          / 
+         DCI   /(PRESS    THE RETURN KEY)/ 
+         DFB   00
+* NROOM = NUMBER OF ROOMS
+NROOM    DFB   50         
+RMDIR    DFB   16,0,0,0,0,0,0,0 
+ROOM2    DFB   17,0,0,0,34,0,0,0
+ROOM3    DFB   18,0,0,0,0,0,0,0 
+ROOM4    DFB   19,0,0,0,0,0,0,0
+ROOM5    DFB   20,0,0,0,30,0,0,0
+ROOM6    DFB   21,0,0,0,0,0,0,0
+ROOM7    DFB   22,0,0,0,0,0,0,0
+ROOM8    DFB   23,0,0,0,0,0,0,0 
+ROOM9    DFB   24,0,0,0,0,0,0,0 
+ROOM10   DFB   25,0,0,0,35,0,0,0 
+ROOM11   DFB   26,0,0,0,31,0,0,0 
+ROOM12   DFB   27,0,0,0,33,0,0,0 
+ROOM13   DFB   28,0,0,0,0,0,0,0 
+ROOM14   DFB   0,0,16,0,29,0,0,0 
+ROOM15   DFB   0,0,0,0,29,0,28,0 
+ROOM16   DFB   208,0,17,0,1,0,14,0 
+ROOM17   DFB   192,0,18,0,2,0,16,0 
+ROOM18   DFB   186,0,19,0,3,0,17,0 
+ROOM19   DFB   205,0,20,0,4,0,18,0 
+ROOM20   DFB   139,0,21,0,5,0,19,0 
+ROOM21   DFB   114,0,22,0,6,0,20,0 
+ROOM22   DFB   108,0,23,0,7,0,21,0 
+ROOM23   DFB   102,0,24,0,8,0,22,0 
+ROOM24   DFB   123,0,25,0,9,0,23,0
+ROOM25   DFB   173,0,26,0,10,0,24,0
+ROOM26   DFB   166,0,27,0,11,0,25,0
+ROOM27   DFB   206,0,28,0,12,0,26,0
+ROOM28   DFB   172,0,15,0,13,0,27,0
+ROOM29   DFB   0,14,0,0,0,0,0,15 
+ROOM30   DFB   5,0,0,0,0,0,0,0
+ROOM31   DFB   11,0,0,0,43,0,0,0
+ROOM32   DFB   11,0,0,0,0,0,0,0
+ROOM33   DFB   12,0,0,0,0,0,0,0
+ROOM34   DFB   2,0,0,0,0,0,0,0
+ROOM35   DFB   10,0,0,0,0,0,0,0
+ROOM36   DFB   37,0,38,0,39,0,40,0
+ROOM37   DFB   0,0,0,0,36,0,0,0
+ROOM38   DFB   0,0,0,0,0,0,36,0
+ROOM39   DFB   36,0,0,0,0,0,0,0
+ROOM40   DFB   0,0,36,0,0,0,0,0
+ROOM41   DFB   0,0,36,0,0,0,0,0
+ROOM42   DFB   0,0,36,0,0,0,0,0
+ROOM43   DFB   31,0,0,0,0,0,0,0
+ROOM44   DFB   155,198,181,187,45,197,122,180 
+ROOM45   DFB   44,198,181,187,46,197,122,180 
+ROOM46   DFB   44,0,0,0,47,0,0,0
+ROOM47   DFB   46,0,0,0,48,0,0,0
+ROOM48   DFB   47,0,0,0,0,0,0,0
+ROOM49   DFB   47,0,0,0,0,0,0,0
+ROOM50   DFB   44,0,0,0,47,0,0,0
+ROOM101  DFB   0,0,124,0  
+ROOM102  DFB   23,103,0,0 
+         DFB   0,104,126,102 
+         DFB   0,105,0,103 
+         DFB   0,0,128,104 
+         DFB   0,107,0,0  
+         DFB   0,108,0,106
+         DFB   22,109,0,107
+         DFB   0,110,132,108
+ROOM110  DFB   0,111,0,109
+         DFB   0,112,0,110
+         DFB   0,113,0,111
+         DFB   0,114,136,112
+         DFB   21,115,0,113
+         DFB   0,0,138,114
+         DFB   173,0,0,0
+         DFB   0,118,166,0
+         DFB   175,119,0,117
+         DFB   0,120,0,118
+ROOM120  DFB   177,121,0,119
+         DFB   0,0,0,120
+         DFB   0,45,0,0
+         DFB   0,124,0,24 
+         DFB   101,125,0,123
+         DFB   0,0,150,124
+         DFB   103,127,0,0
+         DFB   0,0,152,126
+         DFB   105,129,0,0
+         DFB   0,130,0,128
+ROOM130  DFB   0,131,0,129
+         DFB   0,132,0,130
+         DFB   109,0,0,131
+         DFB   0,134,158,0
+         DFB   0,135,0,133
+         DFB   0,0,160,134
+         DFB   113,137,0,0
+         DFB   0,0,162,136
+         DFB   115,139,0,0
+         DFB   0,20,0,138
+ROOM140  DFB   199,141,0,0
+         DFB   0,142,182,140
+         DFB   201,143,0,141
+         DFB   0,144,184,142
+         DFB   0,0,0,143
+         DFB   0,146,186,0
+         DFB   205,0,0,145
+         DFB   0,0,174,0
+         DFB   0,149,0,0
+         DFB   0,150,176,148
+ROOM150  DFB   125,151,0,149
+         DFB   0,152,178,150
+         DFB   127,0,0,151
+         DFB   0,154,180,0
+         DFB   0,155,0,153
+         DFB   0,156,45,154
+         DFB   0,157,0,155
+         DFB   0,158,0,156
+         DFB   133,0,0,157
+         DFB   0,160,198,0
+ROOM160  DFB   135,161,0,159
+         DFB   0,0,200,160
+         DFB   137,163,0,0
+         DFB   0,164,202,162
+         DFB   0,0,0,163
+         DFB   0,0,204,0
+         DFB   117,167,0,26 
+         DFB   0,0,0,166
+         DFB   0,169,0,0
+         DFB   0,170,194,168
+ROOM170  DFB   0,171,0,169
+         DFB   0,0,196,170
+         DFB   193,0,0,28 
+         DFB   0,174,116,25 
+         DFB   147,175,0,173
+         DFB   0,176,118,174
+         DFB   149,177,0,175
+         DFB   0,178,120,176
+         DFB   151,179,0,177
+         DFB   0,0,0,178
+ROOM180  DFB   153,45,0,0
+         DFB   0,0,188,45
+         DFB   141,183,0,0
+         DFB   0,0,190,182
+         DFB   143,185,0,0
+         DFB   0,186,192,184
+         DFB   145,18,0,185
+         DFB   0,188,0,45
+         DFB   181,0,0,187
+         DFB   0,190,0,0
+ROOM190  DFB   183,19,0,189
+         DFB   0,0,208,190
+         DFB   185,17,0,0
+         DFB   0,194,172,0
+         DFB   169,195,0,193
+         DFB   0,0,0,194
+         DFB   171,0,0,0
+         DFB   0,45,0,0
+         DFB   159,0,0,45
+         DFB   0,200,140,0
+ROOM200  DFB   161,0,0,199
+         DFB   0,0,142,0
+         DFB   163,203,0,0
+         DFB   0,204,0,202
+         DFB   165,205,0,203
+         DFB   0,19,146,204
+         DFB   0,0,0,27   
+         DFB   0,0,0,0
+ROOM208  DFB   191,16,0,0
+RMDESC   DCI   /IN        THE MACHINE SHOP./ 
+         DCI   /IN        THE SHUTTLE BAY./ 
+         DCI   /IN        THE NAVIGATION ROOM./ 
+         DCI   /IN        SURGERY./
+         DCI   /IN        AN UNIDENTIFIED ROOM./ 
+         DCI   /IN        THE CAPTAIN'S QUARTERS./ 
+         DCI   /ON        THE BRIDGE./ 
+         DCI   /IN        THE PASSENGER LOUNGE./ 
+         DCI   /IN        THE GALLEY./
+         DCI   /IN        THE COMMUNICATIONS ROOM./ 
+         DCI   /IN        THE AIRLOCK./ 
+         DCI   /IN        THE LIFE BOAT HANGAR./
+         DCI   /IN        THE ARMORY./ 
+         DCI   /IN        THE STARBOARD ENGINE ROOM./ 
+         DCI   /IN        THE PORT ENGINE ROOM./ 
+         DCI   /IN        A CORRIDOR./
+         DCI   /IN        A CORRIDOR./ 
+         DCI   /IN        A CORRIDOR./
+         DCI   /IN        A CORRIDOR./
+         DCI   /IN        A CORRIDOR./
+         DCI   /IN        A CORRIDOR./
+         DCI   /IN        A CORRIDOR./ 
+         DCI   /IN        A CORRIDOR./
+ROM24    DCI   /IN        A CORRIDOR./
+ROM25    DCI   /IN        A CORRIDOR./
+ROM26    DCI   /IN        A CORRIDOR./
+ROM27    DCI   /IN        A CORRIDOR./
+ROM28    DCI   /IN        A CORRIDOR./
+ROM29    DCI   /FLOATING  OUTSIDE THE SHIP./
+ROM30    DCI   /OUTSIDE   ON THE SHIPS HULL./
+ROM31    DCI   /AT        YOUR SHIP./ 
+ROM32    DCI   /AT        THE REMAINS OF YOUR SHIP./ 
+ROM33    DCI   /INSIDE    A LIFEBOAT./ 
+ROM34    DCI   /INSIDE    THE SHUTTLE./ 
+ROM35    DCI   /INSIDE    THE TELEPORTER./ 
+ROM36    DCI   /ON        AN OPEN PLAIN./ 
+ROM37    DCI   /ON        THE NORTH PLAIN./ 
+ROM38    DCI   /ON        THE EAST PLAIN./ 
+ROM39    DCI   /ON        THE SOUTH PLAIN./ 
+ROM40    DCI   /ON        THE WEST PLAIN./ 
+ROM41    DCI   /ON        THE WEST PLAIN./ 
+ROM42    DCI   /ON        THE WEST PLAIN./ 
+ROM43    DCI   /INSIDE    YOUR SHIP./ 
+ROM44    DCI   /IN        THE CENTER OF THE SHIP./ 
+ROM45    DCI   /IN        THE CENTER OF THE SHIP./ 
+ROM46    DCI   /IN        THE LASER ROOM./ 
+ROM47    DCI   /IN        A LONG CORRIDOR./ 
+ROM48    DCI   /IN        THE MASK ROOM./ 
+ROM49    DCI   /IN        THE MASK ROOM./ 
+ROM50    DCI   /IN        THE LASER ROOM./ 
+ROM101   DCI   /IN        A STATE ROOM./
+DETAIL   DFB   51,52,53,54,55,56,57,58,59,60 
+         DFB   61,62,63,64,65,66,66,66,66,66 
+         DFB   66,66,66,66,66,66,66,66,79,80 
+         DFB   93,94,96,95,124,97,99,98,100,101 
+         DFB   102,103,104,107,106,108,109,110,111,158 
+BENBEF   DFB   1,0,0,0,0,0,0,0,0,0
+         DFB   0,0,0,0,0,0,0,0,0,0
+         DFB   0,0,0,0,0,0,0,0,0,0 
+         DFB   0,0,0,0,0,1,0,0,0,0
+         DFB   1,1,0,0,0,0,0,0,1,1 
+* NVERB = NUMBER OF COMMANDS + 1
+NVERB    DFB   124        
+COMMAND  ASC/N NE         E SE S SW W NW U D / 
+         ASC   /NORTH     NORTHEAST EAST SOUTHEAST SOUTH SOUTHWEST WEST NORTHWEST UP DOWN /
+         ASC   /GO        LOOK EXAMINE GET TAKE DROP /
+         ASC   /PUT       KICK HIT PRESS PUSH /
+         ASC   /MOVE      TURN INSERT OPEN CLOSE /
+         ASC   /DIG       WEAR READ REMOVE QUIT / 
+         ASC   /KILL      ATTACK THROW GIVE DRINK /
+         ASC   /EAT       FILL POUR INVENTORY I / 
+         ASC   /FIRE      SHOOT * ATTACH UNATTACH / 
+         ASC   /*         * * * * / 
+         ASC   /*         * * * * / 
+         ASC   /MK-4      GAME PAGE PROTON-BAZOOKA BAZOOKA / 
+         ASC   /COOKBOOK  ELECTRIC-CROSSBOW BOOK CROSSBOW MK-4-PUNKERPAN /
+         ASC   /CABINET   PUNKERPAN VIBRO-AXE AXE SURGICAL-CHAIN-SAW /
+         ASC   /LOCKER    CHAIN-SAW SAW THERMO-NUCLEAR-DEVICE TOOL /
+         ASC   /NUCLEAR-DEVICE CHEST DEVICE ZAZU-BEER BEER /
+         ASC   /GAS-GRENADE GRENADE GASMASK MASK SPIGOT / 
+         ASC   /WRENCH    CROCKERY POT THOMPSON HUNTER /
+         ASC   /JOE       CHICAGO GEUSE BEETLE YUGGOTH /
+         ASC   /SHOVEL    CABLE TOKEN KEY CIGAR /
+         ASC   /KEWPIE    DOLL CARDS RING SALT /
+         ASC   /CUBE      MAP BUTTON IRON CLAW / 
+         ASC   /MACHINE   COFFIN BOX /
+OBJVAL   DFB   0,0,0,0,0,0,0,0,0,0
+         DFB   0,0,0,0,0,0,0,0,0,0,0
+         DFB   0,0,0,0,0,0,0,0,0,0
+         DFB   0,0,0,0,0,0,0,0,0,0
+         DFB   0,0,0,0,0,0,0,0,0,0
+         DFB   0,0,0,0,0,0,0,0,0,0
+         DFB   0,0,0,0,0,3,0,0,1,1 
+         DFB   30,2,30,2,3,28,3,4,4,5 
+         DFB   31,5,5,6,33,6,33,6,7,7 
+         DFB   8,8,9,27,10,11,12,12,13,13 
+         DFB   14,14,15,15,16,17,18,19,43,44      
+         DFB   46,46,42,45,25,25,26,50,35,35 
+         DFB   35,48,48
+*CLIMIT = CARRY LIMIT
+CLIMIT   DFB   5          
+*
+* NOBJECT = NUMBER OF OBJECTS
+NOBJECT  DFB   55         
+NOBJSHOW DFB   47         NUMBER OF OBJECTS WITH PICTURES
+OBJECT   DFB   14,0,37    
+         DFB   22,0,37    
+         DFB   13,0,37    
+         DFB   33,0,37    
+         DFB   4,0,0
+NUCLEAR  DFB   13,0,0     
+         DFB   30,0,37    
+         DFB   15,0,37    
+         DFB   7,0,37     
+SPIGOT   DFB   1,2,0
+WRENCH   DFB   1,0,37     
+POT      DFB   9,0,37     
+MONSTER  DFB   10,1,38    
+         DFB   6,1,38     
+         DFB   12,1,38    
+         DFB   14,1,38    
+SHOVEL   DFB   99,0,0
+CABLE    DFB   14,0,0     
+TOKEN    DFB   3,0,38     
+CARDS    DFB   0,0,0
+KEY      DFB   0,0,0
+         DFB   0,0,0
+         DFB   0,0,0
+         DFB   0,0,0
+SALT     DFB   99,0,0
+MAP      DFB   99,0,137   
+MASK     DFB   48,0,0
+CABINET  DFB   9,2,0
+         DFB   0,2,0
+COOKBOOK DFB   99,0,70    
+LOCKER   DFB   6,2,0
+         DFB   0,2,0
+CHEST    DFB   12,2,0
+         DFB   0,2,0
+         DFB   8,2,0
+BRKPOT   DFB   0,2,0
+DMON     DFB   0,1,0
+         DFB   0,1,0
+         DFB   0,1,0
+         DFB   0,1,0
+DZOMB    DFB   0,2,0
+SMALL    DFB   8,2,0
+         DFB   8,2,0
+         DFB   8,2,0
+         DFB   8,2,0
+         DFB   8,2,0
+ATCABLE  DFB   0,2,0
+COFFIN   DFB   41,1,0
+         DFB   42,1,0
+         DFB   43,1,0
+         DFB   33,1,0
+         DFB   34,1,0
+         DFB   35,1,0
+MASK1    DFB   0,0,0
+MASK2    DFB   0,0,0
+OBJNAM   DCI   /PROTON-BAZOOKA/ 
+         DCI   /ELECTRIC-CROSSBOW/
+         DCI   /MK-4-PUNKERPAN/
+         DCI   /VIBRO-AXE/
+         DCI   /SURGICAL-CHAINSAW/
+         DCI   /THERMO-NUCLEAR-DEVICE/
+         DCI   /ZAZU-BEER/
+         DCI   /GAS-GRENADE/
+         DCI   /GASMASK/
+         DCI   /SPIGOT/
+         DCI   /WRENCH/
+         DCI   /CROCKERY  POT/
+         DCI   /THOMPSON  S. HUNTER/
+         DCI   /JOE       FROM CHICAGO/
+         DCI   /GEUSE     BEETLE/
+         DCI   /YUGGOTH/
+         DCI   /SHOVEL/
+         DCI   /CABLE/
+         DCI   /TOKEN/
+         DCI   /CARDS/    
+         DCI   /KEY/
+         DCI   /CIGAR/
+         DCI   /RING/
+         DCI   /KEWPIE    DOLL/ 
+         DCI   /SALT      CUBE/
+         DCI   /MAP/
+         DCI   /MASK      OF KUH-THU-LU/
+         DCI   /CABINET/
+         DCI   /OPEN      CABINET/
+         DCI   /COOKBOOK/
+         DCI   /LOCKER/
+         DCI   /OPEN      LOCKER/
+         DCI   /TOOL      CHEST/
+         DCI   /OPEN      CHEST/
+         DCI   /IRON      CLAW MACHINE/
+         DCI   /BROKEN    POT/
+         DCI   /DEAD      HUNTER/
+         DCI   /DEAD      JOE/
+         DCI   /DEAD      BEETLE/
+         DCI   /DEAD      YUGGOTH/
+         DCI   /DEAD      ZOMBIE/
+         DCI   /CARDS/
+         DCI   /KEY/
+         DCI   /CIGAR/
+         DCI   /RING/
+         DCI   /KEWPIE    DOLL/ 
+         DCI   /ATTACHED  CABLE/
+         DCI   /COFFIN/
+         DCI   /OPEN      COFFIN/
+         DCI   /BUTTON/
+         DCI   /BUTTON/
+         DCI   /BUTTON/
+         DCI   /BUTTON/
+         DCI   /WEARING   - GASMASK/
+         DCI   /WEARING   - MASK/
+OBDET    DFB   81,82,83,84,85,86,87,88,89,140 
+         DFB   138,143,145,146,147,148,127,128,155,133 
+         DFB   134,131,135,132,77,136,139,67,68,69 
+         DFB   75,76,78,126,129,144,149,150,151,152 
+         DFB   153,133,134,131,135,132,154,0,0,0 
+         DFB   0,0,0,20,20 
+         CHN   SYSMSG

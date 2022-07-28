@@ -62,8 +62,8 @@
 [Source Phobio]: Source/Phobos%20Dav%20Holle%20IO%20Phobio
 [Source Modem]: Source/Queen%20of%20Phobos%20Modem%20Text%20Version
 
-[Disk Phobio]: Source/Phobos%20Dav%20Holle%20IO%20Phobio.DSK
-[Disk Modem]: Source/Queen%20of%20Phobos%20Modem%20Text%20Version.SDK
+[Disk Phobio]: Disks/Phobos%20Dav%20Holle%20IO%20Phobio.DSK
+[Disk Modem]: Disks/Queen%20of%20Phobos%20Modem%20Text%20Version.SDK
 
 
 <!----------------------------------[ Badges ]--------------------------------->
